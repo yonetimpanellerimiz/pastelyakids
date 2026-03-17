@@ -5,6 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sipariş Paneli</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script type="module">
+// ══ FIREBASE ══
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD12Q7N8YHmJ1zhWXeZZiX34Ryp0WbeVug",
+  authDomain: "pastelyakids-905dc.firebaseapp.com",
+  databaseURL: "https://pastelyakids-905dc-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "pastelyakids-905dc",
+  storageBucket: "pastelyakids-905dc.firebasestorage.app",
+  messagingSenderId: "229285641747",
+  appId: "1:229285641747:web:174345fdb09eeec42b49e6"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// Firebase okuma/yazma yardımcıları — window'a ekle ki diğer scriptler erişebilsin
+window.fbSet = async (path, data) => {
+  try { await set(ref(db, path), data); } catch(e) { console.error('Firebase write error:', e); }
+};
+window.fbGet = async (path) => {
+  try {
+    const snap = await get(ref(db, path));
+    return snap.exists() ? snap.val() : null;
+  } catch(e) { console.error('Firebase read error:', e); return null; }
+};
+window.fbListen = (path, cb) => {
+  onValue(ref(db, path), snap => cb(snap.exists() ? snap.val() : null));
+};
+window.firebaseReady = true;
+document.dispatchEvent(new Event('firebase-ready'));
+</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
 :root{
@@ -1083,6 +1117,7 @@ let sortK='date', sortD=-1;
 let chartI={}, editingId=null;
 
 function loadData(){
+  // Önce localStorage'dan yükle (hızlı başlangıç)
   try{orders=JSON.parse(localStorage.getItem(SK))||[];}catch{orders=[];}
   try{const p=JSON.parse(localStorage.getItem(PK));products=Array.isArray(p)?p:[];}catch{products=[];}
   try{
@@ -1090,9 +1125,45 @@ function loadData(){
     markets=Array.isArray(m)&&m.length?m:JSON.parse(JSON.stringify(DEFAULT_MARKETS));
   }catch{markets=JSON.parse(JSON.stringify(DEFAULT_MARKETS));}
 }
-function saveOrders(){localStorage.setItem(SK,JSON.stringify(orders));}
-function saveProducts(){localStorage.setItem(PK,JSON.stringify(products));}
-function saveMarkets(){localStorage.setItem(MK,JSON.stringify(markets));}
+
+async function syncFromFirebase(){
+  if(!window.fbGet) return;
+  try{
+    const fbOrders=await window.fbGet('orders');
+    const fbProducts=await window.fbGet('products');
+    const fbMarkets=await window.fbGet('markets');
+    if(fbOrders&&Array.isArray(fbOrders)){
+      orders=fbOrders;
+      localStorage.setItem(SK,JSON.stringify(orders));
+    }
+    if(fbProducts&&Array.isArray(fbProducts)){
+      products=fbProducts;
+      localStorage.setItem(PK,JSON.stringify(products));
+    }
+    if(fbMarkets&&Array.isArray(fbMarkets)&&fbMarkets.length){
+      markets=fbMarkets;
+      localStorage.setItem(MK,JSON.stringify(markets));
+    }
+    // UI'ı güncelle
+    const page=sessionStorage.getItem('activePage')||'dashboard';
+    if(page==='liste') renderListPage();
+    if(page==='dashboard') renderDashboard();
+    renderStats();
+    toast('Veriler senkronize edildi ✓','success');
+  }catch(e){console.error('Firebase sync error:',e);}
+}
+function saveOrders(){
+  localStorage.setItem(SK,JSON.stringify(orders));
+  if(window.fbSet) window.fbSet('orders', orders);
+}
+function saveProducts(){
+  localStorage.setItem(PK,JSON.stringify(products));
+  if(window.fbSet) window.fbSet('products', products);
+}
+function saveMarkets(){
+  localStorage.setItem(MK,JSON.stringify(markets));
+  if(window.fbSet) window.fbSet('markets', markets);
+}
 
 // ════════════════════════════════════════
 //  NAVIGATION
@@ -3049,6 +3120,9 @@ document.addEventListener('click',e=>{
 // ════════════════════════════════════════
 loadData();
 loadHarcamalar();
+// Firebase hazır olduğunda senkronize et
+document.addEventListener('firebase-ready', ()=>syncFromFirebase());
+if(window.firebaseReady) syncFromFirebase();
 loadLog();
 loadPuantaj();
 loadYillikIzin();
