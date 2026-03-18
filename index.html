@@ -333,6 +333,10 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
     <div class="nav-item active" id="nav-dashboard" onclick="goto('dashboard',this)">
       <span class="nav-ico">🏠</span>Dashboard
     </div>
+    <div class="nav-item" id="nav-notlar" onclick="goto('notlar',this)">
+      <span class="nav-ico">💬</span>Not & Görevler
+      <span class="nav-badge" id="nb-notlar" style="background:#7c3aed;display:none">0</span>
+    </div>
     <div class="nav-section">Sipariş</div>
     <div class="nav-item" id="nav-yeni" onclick="goto('yeni',this)">
       <span class="nav-ico">✏️</span>Yeni Sipariş
@@ -493,6 +497,53 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ══ NOT & GÖREVLER ══ -->
+    <div class="page" id="page-notlar">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+
+        <!-- SOL: NOTLAR / MESAJLAR -->
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">💬 Ekip Notları</div>
+          <!-- Mesaj gönder -->
+          <div style="background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius-lg);padding:12px 14px;margin-bottom:10px">
+            <div style="display:flex;gap:8px;margin-bottom:8px">
+              <input class="f-input" id="not-isim" placeholder="Adınız..." style="width:140px;font-size:13px;padding:6px 10px">
+              <input class="f-input" id="not-renk" type="color" value="#d4550f" style="width:38px;height:36px;border:.5px solid var(--border2);border-radius:var(--radius);cursor:pointer;padding:2px;flex-shrink:0">
+            </div>
+            <textarea class="f-textarea" id="not-metin" placeholder="Mesajınızı yazın..." rows="3" style="margin-bottom:8px;resize:none" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter')addNot()"></textarea>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:11px;color:var(--text3)"><kbd style="font-size:10px">Ctrl+Enter</kbd> ile gönder</span>
+              <button class="btn primary" onclick="addNot()" style="padding:6px 16px">Gönder</button>
+            </div>
+          </div>
+          <!-- Mesaj listesi -->
+          <div id="not-listesi" style="display:flex;flex-direction:column;gap:8px"></div>
+        </div>
+
+        <!-- SAĞ: GÖREVLER -->
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">✅ Görevler</div>
+          <!-- Görev ekle -->
+          <div style="background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius-lg);padding:12px 14px;margin-bottom:10px">
+            <div style="display:flex;gap:8px">
+              <input class="f-input" id="gorev-metin" placeholder="Yeni görev ekle..." style="flex:1;font-size:13px;padding:6px 10px" onkeydown="if(event.key==='Enter')addGorev()">
+              <input class="f-input" id="gorev-kisi" placeholder="Kime?" style="width:110px;font-size:13px;padding:6px 10px" onkeydown="if(event.key==='Enter')addGorev()">
+              <button class="btn primary" onclick="addGorev()" style="padding:6px 14px;white-space:nowrap">+ Ekle</button>
+            </div>
+          </div>
+          <!-- Filtre -->
+          <div style="display:flex;gap:6px;margin-bottom:10px">
+            <div class="pill active" onclick="setGorevFilter('all',this)">Tümü</div>
+            <div class="pill" onclick="setGorevFilter('bekliyor',this)">Bekliyor</div>
+            <div class="pill" onclick="setGorevFilter('tamamlandi',this)">Tamamlandı</div>
+          </div>
+          <!-- Görev listesi -->
+          <div id="gorev-listesi" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+
       </div>
     </div>
 
@@ -808,6 +859,19 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
         <div class="scard" style="border-top:2.5px solid #2d7a3a"><div class="sc-label">Kontrol Edildi</div><div class="sc-val" id="desi-checked" style="color:#2d7a3a">0</div><div class="sc-sub">onaylandı</div></div>
         <div class="scard"><div class="sc-label">Kontrol Bekliyor</div><div class="sc-val" id="desi-unchecked" style="color:var(--s-prod)">0</div><div class="sc-sub">sipariş</div></div>
       </div>
+      <!-- Desi filtre -->
+      <div class="filter-bar" style="margin-bottom:12px">
+        <div class="pill active" onclick="setDesiFilter('all',this)">Tümü</div>
+        <div class="pill" onclick="setDesiFilter('bekliyor',this)">⏳ Kontrol Bekliyor</div>
+        <div class="pill" onclick="setDesiFilter('eslesti',this)" style="border-color:#2d7a3a;color:#2d7a3a">✅ Eşleşti</div>
+        <div class="pill" onclick="setDesiFilter('farkli',this)" style="border-color:#dc2626;color:#dc2626">❌ Farklı</div>
+      </div>
+      <div id="desi-bulk-bar" style="display:none;align-items:center;gap:10px;background:var(--text);color:#fff;padding:10px 16px;border-radius:var(--radius-lg);margin-bottom:10px">
+        <span id="desi-bulk-count" style="font-size:13px;font-weight:600"></span>
+        <span style="font-size:12px;opacity:.7">kayıt seçildi</span>
+        <button onclick="exportDesiSecili()" style="padding:5px 14px;border-radius:20px;border:1.5px solid rgba(255,255,255,.7);background:rgba(255,255,255,.15);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font)">📥 CSV İndir</button>
+        <button onclick="clearDesiSelection()" style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,.6);font-size:18px;cursor:pointer;padding:0 4px">×</button>
+      </div>
       <div class="tbl-wrap">
         <table>
           <thead>
@@ -816,8 +880,10 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
               <th style="width:150px">Ürünler</th>
               <th>Detay</th>
               <th style="width:80px">Tarih</th>
-              <th style="width:120px">Desi</th>
-              <th style="width:120px">Kontrol</th>
+              <th style="width:36px;padding:9px 10px"><input type="checkbox" id="desi-chk-all" onchange="toggleAllDesi(this)" style="cursor:pointer;width:14px;height:14px"></th>
+              <th style="width:150px">Bizim Desi</th>
+              <th style="width:130px">Fatura Desi</th>
+              <th style="width:100px">Sonuç</th>
             </tr>
           </thead>
           <tbody id="desi-tbody"></tbody>
@@ -1177,7 +1243,7 @@ function saveMarkets(){
 // ════════════════════════════════════════
 //  NAVIGATION
 // ════════════════════════════════════════
-const pageTitles={dashboard:'Dashboard',yeni:'Yeni Sipariş',liste:'Tüm Siparişler',uretim:'Üretim Takibi',kargo:'Kargo Takibi',rapor:'Raporlar',urunler:'Ürün Listesi',pazarlar:'Pazar Yerleri',sorunlu:'Sorunlu Siparişler',desi:'Desi Kontrol',log:'İşlem Geçmişi',puantaj:'Puantaj',fiyat:'Fiyat Listesi',butce:'Harcamalar'};
+const pageTitles={dashboard:'Dashboard',notlar:'Not & Görevler',yeni:'Yeni Sipariş',liste:'Tüm Siparişler',uretim:'Üretim Takibi',kargo:'Kargo Takibi',rapor:'Raporlar',urunler:'Ürün Listesi',pazarlar:'Pazar Yerleri',sorunlu:'Sorunlu Siparişler',desi:'Desi Kontrol',log:'İşlem Geçmişi',puantaj:'Puantaj',fiyat:'Fiyat Listesi',butce:'Harcamalar'};
 
 function goto(page,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1192,6 +1258,7 @@ function goto(page,el){
   if(page!=='log') logUnlocked=false;
   closeMktDropdown();closeDropdown();
   if(page==='dashboard'){setTimeout(renderDashboard,100);}
+  if(page==='notlar'){renderNotlar();renderGorevler();}
   if(page==='yeni'){initForm();setTimeout(()=>document.getElementById('f-name').focus(),80);}
   if(page==='liste'){
     statF='new';
@@ -2465,31 +2532,59 @@ td{padding:6px 12px;vertical-align:middle}
 // ════════════════════════════════════════
 //  DESİ KONTROL
 // ════════════════════════════════════════
+let desiFilter='all';
+let desiSelectedIds=new Set();
+
+function setDesiFilter(f,el){
+  desiFilter=f;
+  document.querySelectorAll('#page-desi .filter-bar .pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  renderDesi();
+}
+
 function renderDesi(){
   const etsynDone=orders.filter(o=>o.platform==='etsy'&&o.status==='done');
   const filled=etsynDone.filter(o=>o.desi&&String(o.desi).trim());
   const empty=etsynDone.filter(o=>!o.desi||!String(o.desi).trim());
   const checked=etsynDone.filter(o=>o.desiChecked);
   const unchecked=etsynDone.filter(o=>!o.desiChecked);
-  setText('desi-total',   etsynDone.length);
-  setText('desi-filled',  filled.length);
-  setText('desi-empty',   empty.length);
-  setText('desi-checked', checked.length);
+  setText('desi-total',    etsynDone.length);
+  setText('desi-filled',   filled.length);
+  setText('desi-empty',    empty.length);
+  setText('desi-checked',  checked.length);
   setText('desi-unchecked',unchecked.length);
   const badge=document.getElementById('nb-desi');
   if(badge){badge.textContent=empty.length;badge.style.display=empty.length>0?'':'none';}
   const tbody=document.getElementById('desi-tbody');
   if(!etsynDone.length){
-    tbody.innerHTML='<tr><td colspan="6" class="no-data">Henüz tamamlanmış Etsy siparişi yok.</td></tr>';
-    return;
+    tbody.innerHTML='<tr><td colspan="8" class="no-data">Henüz tamamlanmış Etsy siparişi yok.</td></tr>';
+    updateDesiBulkBar();return;
   }
-  // Sıralama: kontrol edilmemiş önce, sonra edilmiş
-  const sorted=[...unchecked,...checked];
-  tbody.innerHTML=sorted.map(o=>{
+  let filtered=etsynDone;
+  if(desiFilter==='bekliyor') filtered=etsynDone.filter(o=>!o.desiFatura||!String(o.desiFatura).trim());
+  else if(desiFilter==='eslesti') filtered=etsynDone.filter(o=>o.desiFatura&&parseFloat(o.desi)===parseFloat(o.desiFatura));
+  else if(desiFilter==='farkli') filtered=etsynDone.filter(o=>o.desiFatura&&parseFloat(o.desi)!==parseFloat(o.desiFatura));
+  if(!filtered.length){
+    tbody.innerHTML='<tr><td colspan="8" class="no-data">Bu filtrede kayıt yok.</td></tr>';
+    updateDesiBulkBar();return;
+  }
+  tbody.innerHTML=filtered.map(o=>{
     const prods=(o.products||[]).map(p=>`<span class="prod-tag">${escHtml(p)}</span>`).join('');
     const hasDesi=o.desi&&String(o.desi).trim();
-    const isChecked=!!o.desiChecked;
-    return `<tr style="${isChecked?'opacity:.55':''}">
+    const hasFatura=o.desiFatura&&String(o.desiFatura).trim();
+    const isSel=desiSelectedIds.has(o.id);
+    let sonuc='',rowBg='';
+    if(hasDesi&&hasFatura){
+      const eslesme=parseFloat(o.desi)===parseFloat(o.desiFatura);
+      rowBg=eslesme?'background:#f0fdf4':'background:#fef2f2';
+      sonuc=eslesme
+        ?'<span style="background:#dcfce7;color:#166534;border:.5px solid #86efac;padding:4px 10px;border-radius:var(--radius);font-size:12px;font-weight:600">✅ Eşleşti</span>'
+        :'<span style="background:#fef2f2;color:#dc2626;border:.5px solid #fca5a5;padding:4px 10px;border-radius:var(--radius);font-size:12px;font-weight:600">❌ Farklı</span>';
+    }
+    return `<tr style="${rowBg}">
+      <td style="padding:10px;width:36px" onclick="event.stopPropagation()">
+        <input type="checkbox" ${isSel?'checked':''} onchange="toggleDesiRow('${o.id}',this)" style="cursor:pointer;width:14px;height:14px">
+      </td>
       <td style="font-weight:600">${escHtml(o.name||'—')}</td>
       <td>${prods||'—'}</td>
       <td style="font-size:12px;color:var(--text2)">${escHtml(o.detay||'—')}</td>
@@ -2500,41 +2595,105 @@ function renderDesi(){
             value="${escHtml(String(o.desi||''))}" placeholder="0.00"
             onchange="saveDesi('${o.id}',this.value)"
             onkeydown="if(event.key==='Enter')this.blur()"
-            style="width:72px;padding:5px 7px;border:.5px solid ${hasDesi?'var(--border2)':'var(--s-belirsiz)'};border-radius:var(--radius);font-size:13px;font-family:var(--font);text-align:right;outline:none;transition:border-color .12s"
+            style="width:72px;padding:5px 7px;border:.5px solid ${hasDesi?'var(--border2)':'var(--s-belirsiz)'};border-radius:var(--radius);font-size:13px;font-family:var(--font);text-align:right;outline:none"
             onfocus="this.style.borderColor='var(--accent)'"
             onblur="this.style.borderColor='var(--border2)'">
           <span style="font-size:11px;color:var(--text3)">desi</span>
         </div>
       </td>
       <td style="padding:6px 8px">
-        <button onclick="toggleDesiCheck('${o.id}')"
-          style="padding:5px 10px;border-radius:var(--radius);border:.5px solid ${isChecked?'#2d7a3a':'var(--border2)'};background:${isChecked?'#eef7f0':'var(--surface)'};color:${isChecked?'#2d7a3a':'var(--text2)'};font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font);white-space:nowrap;transition:all .12s">
-          ${isChecked?'✅ Onaylı':'☑ Kontrol Et'}
-        </button>
+        <div style="display:flex;align-items:center;gap:5px">
+          <input type="number" step="0.01" min="0"
+            value="${escHtml(String(o.desiFatura||''))}" placeholder="0.00"
+            onchange="saveFaturaDesi('${o.id}',this.value)"
+            onkeydown="if(event.key==='Enter')this.blur()"
+            style="width:72px;padding:5px 7px;border:.5px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:var(--font);text-align:right;outline:none"
+            onfocus="this.style.borderColor='var(--accent)'"
+            onblur="this.style.borderColor='var(--border2)'">
+          <span style="font-size:11px;color:var(--text3)">desi</span>
+        </div>
       </td>
+      <td style="padding:6px 8px">${sonuc}</td>
     </tr>`;
   }).join('');
+  const allChk=document.getElementById('desi-chk-all');
+  if(allChk){
+    allChk.checked=filtered.length>0&&filtered.every(o=>desiSelectedIds.has(o.id));
+    allChk.indeterminate=!allChk.checked&&filtered.some(o=>desiSelectedIds.has(o.id));
+  }
+  updateDesiBulkBar();
 }
 
 function saveDesi(id,val){
   const o=orders.find(x=>x.id===id);if(!o)return;
   o.desi=val;saveOrders();
-  if(val&&String(val).trim()) addLog('desi', o.name, `Desi girildi: ${val}`);
-  const etsynDone=orders.filter(x=>x.platform==='etsy'&&x.status==='done');
-  const emptyCount=etsynDone.filter(x=>!x.desi||!String(x.desi).trim()).length;
-  const badge=document.getElementById('nb-desi');
-  if(badge){badge.textContent=emptyCount;badge.style.display=emptyCount>0?'':'none';}
-  setText('desi-filled',etsynDone.filter(x=>x.desi&&String(x.desi).trim()).length);
-  setText('desi-empty', emptyCount);
+  if(val&&String(val).trim()) addLog('desi',o.name,`Desi girildi: ${val}`);
+  renderDesi();
   if(val&&String(val).trim()) toast('Desi kaydedildi.','success');
+}
+
+function saveFaturaDesi(id,val){
+  const o=orders.find(x=>x.id===id);if(!o)return;
+  o.desiFatura=val;
+  o.desiChecked=!!(val&&String(val).trim());
+  saveOrders();renderDesi();
+  if(val&&String(val).trim()){
+    const eslesme=parseFloat(o.desi)===parseFloat(val);
+    toast(eslesme?`✅ Eşleşti — ${o.name}`:`❌ Farklı — ${o.name}`,eslesme?'success':'error');
+  }
+}
+
+function toggleDesiRow(id,chk){
+  if(chk.checked) desiSelectedIds.add(id);
+  else desiSelectedIds.delete(id);
+  updateDesiBulkBar();
+}
+
+function toggleAllDesi(chk){
+  const etsynDone=orders.filter(o=>o.platform==='etsy'&&o.status==='done');
+  let filtered=etsynDone;
+  if(desiFilter==='bekliyor') filtered=etsynDone.filter(o=>!o.desiFatura||!String(o.desiFatura).trim());
+  else if(desiFilter==='eslesti') filtered=etsynDone.filter(o=>o.desiFatura&&parseFloat(o.desi)===parseFloat(o.desiFatura));
+  else if(desiFilter==='farkli') filtered=etsynDone.filter(o=>o.desiFatura&&parseFloat(o.desi)!==parseFloat(o.desiFatura));
+  if(chk.checked) filtered.forEach(o=>desiSelectedIds.add(o.id));
+  else desiSelectedIds.clear();
+  renderDesi();
+}
+
+function clearDesiSelection(){
+  desiSelectedIds.clear();
+  renderDesi();
+}
+
+function updateDesiBulkBar(){
+  const bar=document.getElementById('desi-bulk-bar');
+  const cnt=document.getElementById('desi-bulk-count');
+  if(!bar)return;
+  if(desiSelectedIds.size>0){bar.style.display='flex';cnt.textContent=desiSelectedIds.size;}
+  else bar.style.display='none';
+}
+
+function exportDesiSecili(){
+  if(!desiSelectedIds.size){toast('Kayıt seçiniz.','error');return;}
+  const selected=orders.filter(o=>desiSelectedIds.has(o.id));
+  const headers=['Müşteri Adı','Ürünler','Detay','Tarih','Bizim Desi','Fatura Desi','Sonuç'];
+  const rows=selected.map(o=>{
+    const bizim=parseFloat(o.desi)||0;
+    const fatura=parseFloat(o.desiFatura)||0;
+    const sonuc=o.desiFatura?(bizim===fatura?'Eşleşti':'Farklı'):'Kontrol Bekliyor';
+    return [o.name||'',(o.products||[]).join(', '),o.detay||'',o.date||'',bizim,fatura,sonuc];
+  });
+  const csv=[headers,...rows].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='desi_secili_'+todayStr()+'.csv';a.click();
+  toast(selected.length+' kayıt indirildi.','success');
 }
 
 function toggleDesiCheck(id){
   const o=orders.find(x=>x.id===id);if(!o)return;
   o.desiChecked=!o.desiChecked;
-  addLog('desi', o.name, o.desiChecked?'Desi kontrol onaylandı':'Desi onayı kaldırıldı');
   saveOrders();renderDesi();
-  toast(o.desiChecked?'Kontrol edildi ✓':'Onay kaldırıldı.', o.desiChecked?'success':'');
 }
 
 // ════════════════════════════════════════
@@ -2726,14 +2885,12 @@ function renderPuantaj(){
         <span style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Not</span>
       </td>
       <td colspan="${daysInMonth+1}" style="background:var(--surface2);padding:4px 8px">
-        <input
-          type="text"
+        <textarea
           id="pnot-${p.id}"
           placeholder="Maaş, prim, özel not..."
-          value="${escHtml(noteVal)}"
           onchange="savePuantajNote('${p.id}',this.value)"
-          style="width:100%;border:none;background:transparent;font-size:12px;font-family:var(--font);color:var(--text);outline:none;padding:0;line-height:1.5;height:24px"
-        >
+          style="width:100%;border:none;background:transparent;font-size:12px;font-family:var(--font);color:var(--text);resize:none;outline:none;padding:0;line-height:1.5;min-height:22px;max-height:60px"
+        >${escHtml(noteVal)}</textarea>
       </td>
     </tr>`;
   });
@@ -3191,10 +3348,139 @@ document.addEventListener('click',e=>{
 });
 
 // ════════════════════════════════════════
+//  NOT & GÖREVLER
+// ════════════════════════════════════════
+const NOTLAR_KEY='ekip_notlar_v1';
+const GOREV_KEY='ekip_gorev_v1';
+let notlarData=[], gorevlerData=[];
+let gorevFilter='all';
+
+function loadNotlar(){
+  try{notlarData=JSON.parse(localStorage.getItem(NOTLAR_KEY))||[];}catch{notlarData=[];}
+}
+function saveNotlar(){localStorage.setItem(NOTLAR_KEY,JSON.stringify(notlarData));}
+function loadGorevler(){
+  try{gorevlerData=JSON.parse(localStorage.getItem(GOREV_KEY))||[];}catch{gorevlerData=[];}
+}
+function saveGorevler(){localStorage.setItem(GOREV_KEY,JSON.stringify(gorevlerData));}
+
+function addNot(){
+  const isim=document.getElementById('not-isim').value.trim();
+  const metin=document.getElementById('not-metin').value.trim();
+  const renk=document.getElementById('not-renk').value||'#d4550f';
+  if(!metin){toast('Mesaj yazınız.','error');return;}
+  notlarData.unshift({id:'n_'+Date.now(),isim:isim||'Anonim',metin,renk,ts:new Date().toISOString()});
+  saveNotlar();
+  document.getElementById('not-metin').value='';
+  renderNotlar();
+  updateNotBadge();
+}
+
+function removeNot(id){
+  notlarData=notlarData.filter(n=>n.id!==id);
+  saveNotlar();renderNotlar();updateNotBadge();
+}
+
+function renderNotlar(){
+  const cont=document.getElementById('not-listesi');if(!cont)return;
+  if(!notlarData.length){
+    cont.innerHTML='<div style="text-align:center;padding:30px;color:var(--text3);font-size:13px">Henüz not yok. İlk mesajı gönderin!</div>';
+    return;
+  }
+  cont.innerHTML=notlarData.map(n=>{
+    const dt=new Date(n.ts);
+    const zaman=dt.toLocaleDateString('tr-TR',{day:'numeric',month:'short'})+' '+dt.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+    return `<div style="background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius-lg);padding:12px 14px;border-left:3px solid ${escHtml(n.renk)}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="width:28px;height:28px;border-radius:50%;background:${escHtml(n.renk)}22;border:1.5px solid ${escHtml(n.renk)};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:${escHtml(n.renk)}">${escHtml(n.isim[0]?.toUpperCase()||'?')}</span>
+          <span style="font-size:13px;font-weight:600;color:var(--text)">${escHtml(n.isim)}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;color:var(--text3)">${zaman}</span>
+          <button onclick="removeNot('${n.id}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0;line-height:1">×</button>
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--text);line-height:1.6;white-space:pre-wrap;word-break:break-word">${escHtml(n.metin)}</div>
+    </div>`;
+  }).join('');
+}
+
+function addGorev(){
+  const metin=document.getElementById('gorev-metin').value.trim();
+  const kisi=document.getElementById('gorev-kisi').value.trim();
+  if(!metin){toast('Görev yazınız.','error');return;}
+  gorevlerData.unshift({id:'g_'+Date.now(),metin,kisi,tamamlandi:false,ts:new Date().toISOString()});
+  saveGorevler();
+  document.getElementById('gorev-metin').value='';
+  document.getElementById('gorev-kisi').value='';
+  renderGorevler();updateNotBadge();
+}
+
+function toggleGorev(id){
+  const g=gorevlerData.find(x=>x.id===id);if(!g)return;
+  g.tamamlandi=!g.tamamlandi;
+  if(g.tamamlandi) g.tamamlandiTs=new Date().toISOString();
+  else delete g.tamamlandiTs;
+  saveGorevler();renderGorevler();updateNotBadge();
+}
+
+function removeGorev(id){
+  gorevlerData=gorevlerData.filter(g=>g.id!==id);
+  saveGorevler();renderGorevler();updateNotBadge();
+}
+
+function setGorevFilter(f,el){
+  gorevFilter=f;
+  document.querySelectorAll('#page-notlar .pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  renderGorevler();
+}
+
+function renderGorevler(){
+  const cont=document.getElementById('gorev-listesi');if(!cont)return;
+  let filtered=gorevlerData;
+  if(gorevFilter==='bekliyor') filtered=gorevlerData.filter(g=>!g.tamamlandi);
+  else if(gorevFilter==='tamamlandi') filtered=gorevlerData.filter(g=>g.tamamlandi);
+  if(!filtered.length){
+    cont.innerHTML='<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">'+
+      (gorevFilter==='tamamlandi'?'Tamamlanan görev yok.':gorevFilter==='bekliyor'?'🎉 Tüm görevler tamamlandı!':'Henüz görev eklenmedi.')+'</div>';
+    return;
+  }
+  cont.innerHTML=filtered.map(g=>{
+    const dt=new Date(g.ts).toLocaleDateString('tr-TR',{day:'numeric',month:'short'});
+    return `<div style="background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius-lg);padding:10px 14px;display:flex;align-items:flex-start;gap:10px;${g.tamamlandi?'opacity:.6':''}">
+      <input type="checkbox" ${g.tamamlandi?'checked':''} onchange="toggleGorev('${g.id}')"
+        style="width:16px;height:16px;cursor:pointer;margin-top:2px;flex-shrink:0;accent-color:var(--accent)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;color:var(--text);${g.tamamlandi?'text-decoration:line-through;color:var(--text3)':''};word-break:break-word">${escHtml(g.metin)}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap">
+          ${g.kisi?`<span style="font-size:11px;background:var(--surface2);border:.5px solid var(--border2);border-radius:4px;padding:1px 7px;color:var(--text2)">👤 ${escHtml(g.kisi)}</span>`:''}
+          <span style="font-size:11px;color:var(--text3)">${dt}</span>
+          ${g.tamamlandi&&g.tamamlandiTs?`<span style="font-size:11px;color:#2d7a3a">✓ ${new Date(g.tamamlandiTs).toLocaleDateString('tr-TR',{day:'numeric',month:'short'})}</span>`:''}
+        </div>
+      </div>
+      <button onclick="removeGorev('${g.id}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0;line-height:1;flex-shrink:0">×</button>
+    </div>`;
+  }).join('');
+}
+
+function updateNotBadge(){
+  const bekleyen=gorevlerData.filter(g=>!g.tamamlandi).length;
+  const badge=document.getElementById('nb-notlar');
+  if(badge){
+    badge.textContent=bekleyen;
+    badge.style.display=bekleyen>0?'':'none';
+  }
+}
+
+// ════════════════════════════════════════
 //  INIT
 // ════════════════════════════════════════
 loadData();
 loadHarcamalar();
+loadNotlar();
+loadGorevler();
 // Firebase hazır olduğunda senkronize et
 document.addEventListener('firebase-ready', ()=>syncFromFirebase());
 if(window.firebaseReady) syncFromFirebase();
