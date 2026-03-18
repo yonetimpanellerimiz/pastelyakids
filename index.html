@@ -576,7 +576,7 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
               <div style="display:flex;align-items:flex-end;gap:10px">
                 <div style="flex:1">
                   <label class="f-label" for="f-date">Tarih</label>
-                  <input class="f-input" id="f-date" type="date" tabindex="-1" onkeydown="if(event.key==='Tab'){event.preventDefault();document.getElementById('prod-trigger').focus()}">
+                  <input class="f-input" id="f-date" type="date" tabindex="-1" onkeydown="if(event.key==='Tab'){event.preventDefault();document.getElementById('prod-input').focus()}">
                 </div>
                 <div style="padding-bottom:7px;font-size:11px;color:var(--text3);white-space:nowrap">Otomatik · değiştirilebilir</div>
               </div>
@@ -616,14 +616,23 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
           <div class="form-card-title">Ürün Seçimi</div>
           <label class="f-label">Ürünler <span style="color:var(--accent)">*</span></label>
           <div class="prod-dropdown-wrap" id="prod-wrap">
-            <div class="prod-trigger" id="prod-trigger" tabindex="4" onclick="toggleDropdown()" onkeydown="handleProdKey(event)">
+            <div class="prod-trigger" id="prod-trigger-wrap">
               <div class="prod-trigger-left" id="prod-trigger-left">
-                <span class="prod-trigger-placeholder" id="prod-placeholder">Seçmek için tıklayın...</span>
+                <span class="prod-trigger-placeholder" id="prod-placeholder">Ürün seçin...</span>
               </div>
-              <span class="prod-trigger-arrow" id="prod-arrow">▼</span>
+              <input
+                id="prod-input"
+                tabindex="4"
+                autocomplete="off"
+                placeholder=""
+                oninput="onProdInput(this.value)"
+                onkeydown="onProdKeyDown(event)"
+                style="border:none;outline:none;background:transparent;font-size:13px;font-family:var(--font);color:var(--text);min-width:60px;padding:0;flex:1"
+              >
+              <span class="prod-trigger-arrow" id="prod-arrow" onclick="toggleDropdown()" style="cursor:pointer;flex-shrink:0">▼</span>
             </div>
             <div class="prod-dropdown" id="prod-dropdown">
-              <div class="prod-search-row">
+              <div class="prod-search-row" style="display:none">
                 <span class="prod-search-icon">🔍</span>
                 <input class="prod-search" id="prod-search" placeholder="Harf yazarak filtrele..." oninput="filterProducts()" tabindex="-1" autocomplete="off">
               </div>
@@ -1251,7 +1260,7 @@ function handleMktKey(e){
   if(e.key==='Tab'){
     e.preventDefault();
     closeMktDropdown();
-    document.getElementById('prod-trigger').focus();
+    document.getElementById('prod-input').focus();
     return;
   }
   if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleMktDropdown();return;}
@@ -1294,28 +1303,27 @@ function handleProdKey(e){
   if(e.key==='Enter'||e.key===' '){e.preventDefault();if(!dropdownOpen)openDropdown();return;}
   if(e.key==='ArrowDown'){
     e.preventDefault();
-    if(!dropdownOpen){
-      openDropdown();
-      setTimeout(()=>moveProdFocus(0),100);
-    } else {
-      moveProdFocus(0);
-    }
+    if(!dropdownOpen){openDropdown();}
+    else{moveProdFocus(0);}
     return;
   }
   const ch=e.key;
   if(ch.length===1){
     e.preventDefault();
-    // Harf basınca aç ve filtrele — kullanıcı listeden seçsin
-    openDropdown();
-    setTimeout(()=>{
-      const s=document.getElementById('prod-search');
-      if(s){
-        s.value=ch;
-        filterProducts();
-        // Otomatik ilk öğeye odaklan
-        setTimeout(()=>moveProdFocus(0),60);
-      }
-    },60);
+    const chLow=ch.toLocaleLowerCase('tr-TR');
+    const matches=products.filter(p=>p[0].toLocaleLowerCase('tr-TR')===chLow&&!selectedProducts.includes(p));
+    if(matches.length===1){
+      // Tek eşleşme — direkt seç
+      toggleProduct(matches[0]);
+      toast(matches[0]+' seçildi','success');
+    } else {
+      // Birden fazla — filtrelenmiş listeyi aç, ok tuşuyla gezilebilir
+      dropdownOpen=true;
+      document.getElementById('prod-dropdown').classList.add('open');
+      document.getElementById('prod-arrow').classList.add('open');
+      renderProdList(ch);
+      setTimeout(()=>moveProdFocus(0),60);
+    }
   }
 }
 
@@ -1383,37 +1391,10 @@ function openDropdown(){
   dropdownOpen=true;
   document.getElementById('prod-dropdown').classList.add('open');
   document.getElementById('prod-arrow').classList.add('open');
-  renderProdList('');
-  setTimeout(()=>{
-    const s=document.getElementById('prod-search');
-    if(s){
-      s.focus();
-      s.onkeydown=function(e){
-        if(e.key==='Tab'){e.preventDefault();closeDropdown();document.getElementById('f-detay').focus();}
-        if(e.key==='Escape'){closeDropdown();document.getElementById('prod-trigger').focus();}
-        if(e.key==='ArrowDown'){e.preventDefault();moveProdFocus(0);}
-        if(e.key==='Enter'){
-          // Enter basınca ilk ürünü seç
-          const items=document.querySelectorAll('#prod-list .prod-item');
-          if(items.length){items[0].click();}
-        }
-      };
-    }
-  },60);
-}
-
-function moveProdFocus(startIdx){
-  const items=document.querySelectorAll('#prod-list .prod-item');
-  if(!items.length) return;
-  const idx=Math.max(0,Math.min(startIdx,items.length-1));
-  items[idx].focus();
-  items[idx].onkeydown=function(e){
-    if(e.key==='ArrowDown'){e.preventDefault();if(idx+1<items.length)moveProdFocus(idx+1);}
-    if(e.key==='ArrowUp'){e.preventDefault();if(idx>0)moveProdFocus(idx-1);else document.getElementById('prod-search').focus();}
-    if(e.key==='Enter'||e.key===' '){e.preventDefault();items[idx].click();}
-    if(e.key==='Escape'){closeDropdown();document.getElementById('prod-trigger').focus();}
-    if(e.key==='Tab'){e.preventDefault();closeDropdown();document.getElementById('f-detay').focus();}
-  };
+  const inp=document.getElementById('prod-input');
+  const q=inp?inp.value:'';
+  renderProdList(q);
+  setTimeout(()=>moveProdFocus(0),60);
 }
 
 function closeDropdown(){
@@ -1422,10 +1403,62 @@ function closeDropdown(){
   document.getElementById('prod-arrow').classList.remove('open');
 }
 
+function moveProdFocus(startIdx){
+  const items=document.querySelectorAll('#prod-list .prod-item');
+  if(!items.length) return;
+  const idx=Math.max(0,Math.min(startIdx,items.length-1));
+  items.forEach(i=>i.style.background='');
+  items[idx].style.background='var(--surface2)';
+  items[idx].focus();
+  items[idx].onkeydown=function(e){
+    if(e.key==='ArrowDown'){e.preventDefault();if(idx+1<items.length)moveProdFocus(idx+1);}
+    if(e.key==='ArrowUp'){e.preventDefault();if(idx>0)moveProdFocus(idx-1);else{document.getElementById('prod-input').focus();}}
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();items[idx].click();}
+    if(e.key==='Tab'){e.preventDefault();closeDropdown();document.getElementById('f-detay').focus();}
+    if(e.key==='Escape'){closeDropdown();document.getElementById('prod-input').focus();}
+  };
+}
+
+// Input'a yazınca çalışır
+function onProdInput(val){
+  if(!dropdownOpen){
+    dropdownOpen=true;
+    document.getElementById('prod-dropdown').classList.add('open');
+    document.getElementById('prod-arrow').classList.add('open');
+  }
+  renderProdList(val);
+  const vLow=val.trim().toLocaleLowerCase('tr-TR');
+  if(vLow.length<2){
+    // Tek harf — sadece listele, ilkini vurgula
+    setTimeout(()=>moveProdFocus(0),50);
+    return;
+  }
+  const matches=products.filter(p=>p.toLocaleLowerCase('tr-TR').startsWith(vLow)&&!selectedProducts.includes(p));
+  if(matches.length===1){
+    // Tek eşleşme — otomatik seç
+    toggleProduct(matches[0]);
+    document.getElementById('prod-input').value='';
+    closeDropdown();
+    toast(matches[0]+' seçildi','success');
+  } else if(matches.length>1){
+    setTimeout(()=>moveProdFocus(0),50);
+  }
+}
+
+// Keyboard handler
+function onProdKeyDown(e){
+  if(e.key==='Escape'){closeDropdown();return;}
+  if(e.key==='Tab'){closeDropdown();return;}
+  if(e.key==='ArrowDown'){e.preventDefault();if(!dropdownOpen)openDropdown();else moveProdFocus(0);return;}
+}
+
+function handleProdKey(e){onProdKeyDown(e);}
+
 function filterProducts(){
-  const q=document.getElementById('prod-search').value;
+  const q=document.getElementById('prod-input')?.value||'';
   renderProdList(q);
 }
+
 
 function renderProdList(query){
   const list=document.getElementById('prod-list');
@@ -1471,7 +1504,9 @@ function toggleProduct(name){
   if(idx>=0) selectedProducts.splice(idx,1);
   else selectedProducts.push(name);
   updateTrigger();
-  renderProdList(document.getElementById('prod-search').value);
+  const inp=document.getElementById('prod-input');
+  if(inp) inp.value='';
+  renderProdList('');
 }
 
 function updateTrigger(){
@@ -2691,12 +2726,14 @@ function renderPuantaj(){
         <span style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Not</span>
       </td>
       <td colspan="${daysInMonth+1}" style="background:var(--surface2);padding:4px 8px">
-        <textarea
+        <input
+          type="text"
           id="pnot-${p.id}"
           placeholder="Maaş, prim, özel not..."
+          value="${escHtml(noteVal)}"
           onchange="savePuantajNote('${p.id}',this.value)"
-          style="width:100%;border:none;background:transparent;font-size:12px;font-family:var(--font);color:var(--text);resize:none;outline:none;padding:0;line-height:1.5;min-height:22px;max-height:60px"
-        >${escHtml(noteVal)}</textarea>
+          style="width:100%;border:none;background:transparent;font-size:12px;font-family:var(--font);color:var(--text);outline:none;padding:0;line-height:1.5;height:24px"
+        >
       </td>
     </tr>`;
   });
