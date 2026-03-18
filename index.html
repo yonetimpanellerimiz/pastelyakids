@@ -239,7 +239,7 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
 .prod-search::placeholder{color:var(--text3)}
 .prod-list{max-height:240px;overflow-y:auto}
 .prod-item{padding:9px 14px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:space-between;transition:background .08s;outline:none}
-.prod-item:hover,.prod-item:focus{background:var(--surface2)}
+.prod-item:hover,.prod-item:focus{background:var(--surface2);outline:2px solid var(--accent);outline-offset:-2px}
 .prod-item.checked{background:var(--accent-bg);color:var(--accent);font-weight:500}
 .prod-item .check-ico{font-size:14px;color:var(--accent);opacity:0}
 .prod-item.checked .check-ico{opacity:1}
@@ -576,7 +576,7 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
               <div style="display:flex;align-items:flex-end;gap:10px">
                 <div style="flex:1">
                   <label class="f-label" for="f-date">Tarih</label>
-                  <input class="f-input" id="f-date" type="date" tabindex="3" onkeydown="if(event.key==='Tab'){event.preventDefault();document.getElementById('prod-trigger').focus()}">
+                  <input class="f-input" id="f-date" type="date" tabindex="-1" onkeydown="if(event.key==='Tab'){event.preventDefault();document.getElementById('prod-trigger').focus()}">
                 </div>
                 <div style="padding-bottom:7px;font-size:11px;color:var(--text3);white-space:nowrap">Otomatik · değiştirilebilir</div>
               </div>
@@ -1248,19 +1248,35 @@ function closeMktDropdown(){
 
 // Trigger'daki klavye — kapalıyken harf basınca aç ve seç
 function handleMktKey(e){
+  if(e.key==='Tab'){
+    e.preventDefault();
+    closeMktDropdown();
+    document.getElementById('prod-trigger').focus();
+    return;
+  }
   if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleMktDropdown();return;}
-  if(e.key==='Tab'||e.key==='Escape') return;
+  if(e.key==='Escape') return;
+
+  // Rakamla seç: 1→ilk, 2→ikinci...
+  if(e.key>='1'&&e.key<='9'){
+    const idx=parseInt(e.key)-1;
+    if(markets[idx]){
+      selectPlatform(markets[idx].id);
+      toast(markets[idx].label+' seçildi','success');
+      e.preventDefault();
+    }
+    return;
+  }
+
   const ch=e.key;
   if(ch.length===1){
     const chLow=ch.toLocaleLowerCase('tr-TR');
     const matches=markets.filter(m=>m.label[0].toLocaleLowerCase('tr-TR')===chLow);
     if(matches.length===1){
-      // Tek eşleşme — direkt seç
       selectPlatform(matches[0].id);
       toast(matches[0].label+' seçildi','success');
       e.preventDefault();
     } else if(matches.length>1){
-      // Birden fazla — filtrelenmiş listeyi aç
       openMktDropdown();
       setTimeout(()=>{
         const s=document.getElementById('mkt-search');
@@ -1271,17 +1287,34 @@ function handleMktKey(e){
   }
 }
 
-// Ürün trigger klavye — harf basınca filtrelenmiş listeyi aç
+// Ürün trigger klavye
 function handleProdKey(e){
-  if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleDropdown();return;}
-  if(e.key==='Tab'||e.key==='Escape') return;
+  if(e.key==='Escape'){closeDropdown();return;}
+  if(e.key==='Tab'){closeDropdown();return;}
+  if(e.key==='Enter'||e.key===' '){e.preventDefault();if(!dropdownOpen)openDropdown();return;}
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    if(!dropdownOpen){
+      openDropdown();
+      setTimeout(()=>moveProdFocus(0),100);
+    } else {
+      moveProdFocus(0);
+    }
+    return;
+  }
   const ch=e.key;
   if(ch.length===1){
     e.preventDefault();
+    // Harf basınca aç ve filtrele — kullanıcı listeden seçsin
     openDropdown();
     setTimeout(()=>{
       const s=document.getElementById('prod-search');
-      if(s){s.value=ch;filterProducts();}
+      if(s){
+        s.value=ch;
+        filterProducts();
+        // Otomatik ilk öğeye odaklan
+        setTimeout(()=>moveProdFocus(0),60);
+      }
     },60);
   }
 }
@@ -1298,12 +1331,12 @@ function renderMktList(query){
   if(!filtered.length){list.innerHTML='<div style="padding:16px;text-align:center;font-size:12px;color:var(--text3)">Bulunamadı.</div>';return;}
   list.innerHTML=filtered.map(m=>{
     const isSel=selectedPlatId===m.id;
-    const firstLetter=m.label[0];
+    const origIdx=markets.indexOf(m)+1;
     return `<div class="mkt-item${isSel?' sel':''}" tabindex="-1" onclick="selectPlatform('${m.id}');closeMktDropdown()">
+      <span style="font-size:11px;font-weight:700;color:var(--text3);width:14px;flex-shrink:0;text-align:center">${origIdx}</span>
       <span class="mkt-dot" style="background:${m.color}"></span>
       <span class="mkt-item-name" style="${isSel?'color:var(--accent)':''}">${escHtml(m.label)}</span>
-      ${isSel?`<span class="mkt-item-check" style="color:var(--accent)">✓</span>`
-             :`<span class="mkt-item-key">${escHtml(firstLetter)}</span>`}
+      ${isSel?`<span class="mkt-item-check" style="color:var(--accent)">✓</span>`:''}
     </div>`;
   }).join('');
 }
@@ -1354,11 +1387,16 @@ function openDropdown(){
   setTimeout(()=>{
     const s=document.getElementById('prod-search');
     if(s){
-      s.value='';s.focus();
+      s.focus();
       s.onkeydown=function(e){
         if(e.key==='Tab'){e.preventDefault();closeDropdown();document.getElementById('f-detay').focus();}
         if(e.key==='Escape'){closeDropdown();document.getElementById('prod-trigger').focus();}
         if(e.key==='ArrowDown'){e.preventDefault();moveProdFocus(0);}
+        if(e.key==='Enter'){
+          // Enter basınca ilk ürünü seç
+          const items=document.querySelectorAll('#prod-list .prod-item');
+          if(items.length){items[0].click();}
+        }
       };
     }
   },60);
@@ -2290,7 +2328,7 @@ th:nth-child(1),td:nth-child(1){width:150px;font-weight:600}
 th:nth-child(2),td:nth-child(2){width:80px;color:#555}
 th:nth-child(3),td:nth-child(3){width:150px;font-weight:500}
 th:nth-child(4),td:nth-child(4){color:#333;word-break:break-word;white-space:pre-wrap}
-th:nth-child(5),td:nth-child(5){width:200px;color:#333;word-break:break-word;white-space:pre-wrap}
+th:nth-child(5),td:nth-child(5){width:150px;color:#333;word-break:break-word;white-space:pre-wrap}
 th:nth-child(6),td:nth-child(6){color:#333;word-break:break-word;white-space:pre-wrap}
 .footer{margin-top:10px;font-size:10px;color:#bbb;display:flex;justify-content:space-between;border-top:1px solid #ddd;padding-top:6px}
 @media print{
