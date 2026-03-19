@@ -667,24 +667,27 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
           <div class="form-card-title">Ürün Seçimi</div>
           <label class="f-label">Ürünler <span style="color:var(--accent)">*</span></label>
           <div style="position:relative" id="prod-wrap">
-            <!-- Seçili ürünler + input -->
-            <div class="prod-trigger" id="prod-trigger-wrap" onclick="document.getElementById('prod-input').focus()" style="cursor:text;display:flex;flex-wrap:wrap;gap:5px;align-items:center;min-height:38px">
-              <div id="prod-trigger-left" style="display:flex;flex-wrap:wrap;gap:5px"></div>
+            <!-- Excel tarzı input: seçili değeri gösterir, yazınca filtreler -->
+            <div style="position:relative">
               <input
                 id="prod-input"
                 tabindex="4"
                 autocomplete="off"
-                placeholder="Ürün yazın veya seçin..."
+                placeholder="Seçiniz..."
                 oninput="prodOnInput(this.value)"
                 onkeydown="prodOnKey(event)"
                 onfocus="prodOpen()"
-                style="border:none;outline:none;background:transparent;font-size:13px;font-family:var(--font);color:var(--text);min-width:120px;padding:0;flex:1"
+                class="f-input"
+                style="padding-right:28px"
               >
+              <span onclick="toggleDropdown()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text3);cursor:pointer;user-select:none" id="prod-arrow">▼</span>
             </div>
-            <!-- Açılır liste -->
-            <div id="prod-dropdown" style="display:none;position:absolute;z-index:50;width:100%;background:var(--surface);border:.5px solid var(--border2);border-radius:var(--radius-lg);margin-top:4px;box-shadow:0 8px 28px rgba(0,0,0,.13);overflow:hidden">
+            <!-- Seçili ürünler (birden fazla seçilirse tag olarak) -->
+            <div id="prod-trigger-left" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;min-height:0"></div>
+            <!-- Dropdown listesi -->
+            <div id="prod-dropdown" style="display:none;position:absolute;z-index:60;width:100%;background:var(--surface);border:.5px solid var(--border2);border-radius:var(--radius-lg);margin-top:2px;box-shadow:0 6px 24px rgba(0,0,0,.13);overflow:hidden">
               <div id="prod-list" style="max-height:260px;overflow-y:auto"></div>
-              <div style="padding:8px 12px;border-top:.5px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+              <div style="padding:6px 12px;border-top:.5px solid var(--border);display:flex;justify-content:space-between;align-items:center">
                 <button class="prod-add-inline" onclick="quickAddProduct()">+ Yeni ürün ekle</button>
                 <span id="prod-count" style="font-size:11px;color:var(--text3)"></span>
               </div>
@@ -1444,165 +1447,218 @@ function addMktFromModal(){
 }
 
 // ════════════════════════════════════════
-//  ÜRÜN SEÇİM (Excel tarzı)
+//  ÜRÜN SEÇİM (Excel dropdown)
 // ════════════════════════════════════════
-let prodHighlightIdx=-1;
+let prodHighlightIdx = 0;
 
-function prodOpen(){
-  const dd=document.getElementById('prod-dropdown');
-  if(dd) dd.style.display='block';
-  dropdownOpen=true;
-  prodRenderList(document.getElementById('prod-input')?.value||'');
+function prodOpen() {
+  var dd = document.getElementById('prod-dropdown');
+  var arrow = document.getElementById('prod-arrow');
+  if (dd) dd.style.display = 'block';
+  if (arrow) arrow.style.transform = 'translateY(-50%) rotate(180deg)';
+  dropdownOpen = true;
+  var q = document.getElementById('prod-input').value || '';
+  prodRenderList(q);
+  // Seçili ürünün üzerine highlight getir
+  if (selectedProducts.length) {
+    var items = document.querySelectorAll('#prod-list .prod-item');
+    items.forEach(function(el, i) {
+      if (el.getAttribute('data-pname') === selectedProducts[0]) {
+        prodHighlightIdx = i;
+      }
+    });
+    prodApplyHighlight();
+  }
 }
 
-function prodClose(){
-  const dd=document.getElementById('prod-dropdown');
-  if(dd) dd.style.display='none';
-  dropdownOpen=false;
-  prodHighlightIdx=-1;
-  const inp=document.getElementById('prod-input');
-  if(inp) inp.value='';
+function prodClose() {
+  var dd = document.getElementById('prod-dropdown');
+  var arrow = document.getElementById('prod-arrow');
+  if (dd) dd.style.display = 'none';
+  if (arrow) arrow.style.transform = 'translateY(-50%)';
+  dropdownOpen = false;
 }
 
-function toggleDropdown(){
-  dropdownOpen?prodClose():prodOpen();
+function toggleDropdown() {
+  if (dropdownOpen) {
+    prodClose();
+    document.getElementById('prod-input').blur();
+  } else {
+    document.getElementById('prod-input').focus();
+    prodOpen();
+  }
 }
-function openDropdown(){prodOpen();}
-function closeDropdown(){prodClose();}
 
-function prodOnInput(val){
-  prodOpen();
+function openDropdown() { prodOpen(); }
+function closeDropdown() { prodClose(); }
+
+function prodOnInput(val) {
+  if (!dropdownOpen) prodOpen();
+  prodHighlightIdx = 0;
+  // Yazınca filtrele — ok tuşu input'u değiştirmez
   prodRenderList(val);
-  prodHighlightIdx=0;
+}
+
+function prodApplyHighlight() {
+  var items = document.querySelectorAll('#prod-list .prod-item');
+  items.forEach(function(el, i) {
+    if (i === prodHighlightIdx) {
+      el.style.background = '#1a5fb4';
+      el.style.color = '#fff';
+      el.scrollIntoView({ block: 'nearest' });
+    } else {
+      var isSel = selectedProducts.includes(el.getAttribute('data-pname'));
+      el.style.background = isSel ? 'var(--accent-bg)' : '';
+      el.style.color = isSel ? 'var(--accent)' : '';
+    }
+  });
+}
+
+function prodRenderList(query) {
+  var list = document.getElementById('prod-list');
+  if (!list) return;
+  var q = query.trim().toLocaleLowerCase('tr-TR');
+  var filtered = q
+    ? products.filter(function(p) { return p.toLocaleLowerCase('tr-TR').startsWith(q); })
+    : products;
+
+  if (!filtered.length) {
+    list.innerHTML = '<div style="padding:14px;text-align:center;font-size:12px;color:var(--text3)">'
+      + (q ? '"' + query + '" ile başlayan ürün yok.' : 'Henüz ürün eklenmemiş.') + '</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(function(p) {
+    var sel = selectedProducts.includes(p);
+    return '<div class="prod-item" data-pname="' + escHtml(p) + '" style="padding:9px 14px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:space-between;border-bottom:.5px solid var(--border);'
+      + (sel ? 'background:var(--accent-bg);color:var(--accent);font-weight:500' : '') + '">'
+      + '<span>' + escHtml(p) + '</span>'
+      + (sel ? '<span style="font-size:12px">✓</span>' : '')
+      + '</div>';
+  }).join('');
+
+  list.querySelectorAll('.prod-item[data-pname]').forEach(function(el) {
+    el.addEventListener('click', function() {
+      prodSelect(this.getAttribute('data-pname'));
+    });
+    el.addEventListener('mouseenter', function() {
+      var idx = Array.from(list.querySelectorAll('.prod-item')).indexOf(this);
+      prodHighlightIdx = idx;
+      prodApplyHighlight();
+    });
+  });
+
+  if (prodHighlightIdx >= filtered.length) prodHighlightIdx = 0;
   prodApplyHighlight();
 }
 
-function prodOnKey(e){
-  const items=document.querySelectorAll('#prod-list .prod-item');
-  if(e.key==='ArrowDown'){
+function prodSelect(name) {
+  selectedProducts = [name];
+  var inp = document.getElementById('prod-input');
+  if (inp) inp.value = name;
+  updateTrigger();
+  prodClose();
+  if (inp) inp.focus();
+}
+
+function prodOnKey(e) {
+  var items = document.querySelectorAll('#prod-list .prod-item');
+
+  if (e.key === 'ArrowDown') {
     e.preventDefault();
-    if(!dropdownOpen){prodOpen();return;}
-    prodHighlightIdx=Math.min(prodHighlightIdx+1,items.length-1);
-    prodApplyHighlight();
-    return;
-  }
-  if(e.key==='ArrowUp'){
-    e.preventDefault();
-    prodHighlightIdx=Math.max(prodHighlightIdx-1,0);
-    prodApplyHighlight();
-    return;
-  }
-  if(e.key==='Enter'){
-    e.preventDefault();
-    if(items[prodHighlightIdx]){
-      items[prodHighlightIdx].click();
+    if (dropdownOpen) {
+      // Dropdown açıksa listede gezin
+      prodHighlightIdx = Math.min(prodHighlightIdx + 1, items.length - 1);
+      prodApplyHighlight();
+    } else {
+      // Dropdown kapalıysa — tüm ürünler arasında sıradakini seç
+      var cur = selectedProducts.length ? products.indexOf(selectedProducts[0]) : -1;
+      var next = Math.min(cur + 1, products.length - 1);
+      if (next >= 0) {
+        selectedProducts = [products[next]];
+        var inp = document.getElementById('prod-input');
+        if (inp) inp.value = products[next];
+        updateTrigger();
+      }
     }
     return;
   }
-  if(e.key==='Tab'){
-    // Tab: highlighted varsa seç, sonra devam et
-    if(dropdownOpen&&items[prodHighlightIdx]){
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (dropdownOpen) {
+      prodHighlightIdx = Math.max(prodHighlightIdx - 1, 0);
+      prodApplyHighlight();
+    } else {
+      var cur = selectedProducts.length ? products.indexOf(selectedProducts[0]) : products.length;
+      var prev = Math.max(cur - 1, 0);
+      if (prev >= 0 && products[prev]) {
+        selectedProducts = [products[prev]];
+        var inp = document.getElementById('prod-input');
+        if (inp) inp.value = products[prev];
+        updateTrigger();
+      }
+    }
+    return;
+  }
+  if (e.key === 'Enter') {
+    if (dropdownOpen && items[prodHighlightIdx]) {
       e.preventDefault();
-      items[prodHighlightIdx].click();
+      prodSelect(items[prodHighlightIdx].getAttribute('data-pname'));
+    }
+    return;
+  }
+  if (e.key === 'Tab') {
+    if (dropdownOpen && items[prodHighlightIdx]) {
+      e.preventDefault();
+      var name = items[prodHighlightIdx].getAttribute('data-pname');
+      selectedProducts = [name];
+      var inp2 = document.getElementById('prod-input');
+      if (inp2) inp2.value = name;
+      updateTrigger();
+      prodClose();
+      setTimeout(function() {
+        var detay = document.getElementById('f-detay');
+        if (detay) detay.focus();
+      }, 40);
     } else {
       prodClose();
     }
     return;
   }
-  if(e.key==='Escape'){
+  if (e.key === 'Escape') {
     prodClose();
+    var inp = document.getElementById('prod-input');
+    if (inp) inp.value = selectedProducts.length === 1 ? selectedProducts[0] : '';
     return;
   }
 }
 
-function prodApplyHighlight(){
-  const items=document.querySelectorAll('#prod-list .prod-item');
-  items.forEach((el,i)=>{
-    el.style.background=i===prodHighlightIdx?'var(--surface2)':'';
-    el.style.outline=i===prodHighlightIdx?'2px solid var(--accent)':'none';
-    el.style.outlineOffset='-2px';
-    if(i===prodHighlightIdx) el.scrollIntoView({block:'nearest'});
-  });
+function toggleProduct(name) { prodSelect(name); }
+function filterProducts() { prodRenderList(''); }
+function moveProdFocus() {}
+function handleProdKey(e) { prodOnKey(e); }
+function onProdInput(v) { prodOnInput(v); }
+function onProdKeyDown(e) { prodOnKey(e); }
+
+function updateTrigger() {
+  var left = document.getElementById('prod-trigger-left');
+  if (!left) return;
+  // Excel'de tek seçim: seçili ürünü input'ta göster, tag yok
+  left.innerHTML = '';
+  setText('prod-count', selectedProducts.length > 0 ? selectedProducts.length + ' seçili' : '');
 }
 
-function prodRenderList(query){
-  const list=document.getElementById('prod-list');
-  const q=query.trim().toLocaleLowerCase('tr-TR');
-  let filtered=q?products.filter(p=>p.toLocaleLowerCase('tr-TR').startsWith(q)):products;
-
-  if(!filtered.length){
-    list.innerHTML=`<div style="padding:14px;text-align:center;font-size:12px;color:var(--text3)">${q?'"'+query+'" ile başlayan ürün yok.':'Henüz ürün eklenmemiş.'}</div>`;
-    setText('prod-count','');
-    return;
-  }
-
-  // Baş harfe göre grupla (filtre yokken)
-  if(!q){
-    const groups={};
-    filtered.forEach(p=>{const k=p[0].toLocaleUpperCase('tr-TR');if(!groups[k])groups[k]=[];groups[k].push(p);});
-    list.innerHTML=Object.keys(groups).sort().map(letter=>
-      `<div style="padding:4px 12px 2px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);background:var(--surface2)">${letter}</div>`+
-      groups[letter].map(p=>{
-        const sel=selectedProducts.includes(p);
-        return `<div class="prod-item${sel?' checked':''}" tabindex="-1" onclick="prodSelect('${escHtml(p)}')" style="padding:10px 14px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:space-between;transition:background .08s;${sel?'background:var(--accent-bg);color:var(--accent);font-weight:500':''}">
-          <span>${escHtml(p)}</span>
-          <span style="font-size:14px;color:var(--accent);opacity:${sel?1:0}">✓</span>
-        </div>`;
-      }).join('')
-    ).join('');
-  } else {
-    list.innerHTML=filtered.map(p=>{
-      const sel=selectedProducts.includes(p);
-      return `<div class="prod-item${sel?' checked':''}" tabindex="-1" onclick="prodSelect('${escHtml(p)}')" style="padding:10px 14px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:space-between;${sel?'background:var(--accent-bg);color:var(--accent);font-weight:500':''}">
-        <span>${escHtml(p)}</span>
-        <span style="font-size:14px;color:var(--accent);opacity:${sel?1:0}">✓</span>
-      </div>`;
-    }).join('');
-  }
-
-  setText('prod-count', selectedProducts.length>0?selectedProducts.length+' seçili':'');
-  prodHighlightIdx=0;
-  prodApplyHighlight();
-}
-
-function prodSelect(name){
-  const idx=selectedProducts.indexOf(name);
-  if(idx>=0) selectedProducts.splice(idx,1);
-  else selectedProducts.push(name);
+function removeSelected(name) {
+  selectedProducts = selectedProducts.filter(function(p) { return p !== name; });
+  var inp = document.getElementById('prod-input');
+  if (inp) inp.value = selectedProducts.length === 1 ? selectedProducts[0] : '';
   updateTrigger();
-  const inp=document.getElementById('prod-input');
-  if(inp){inp.value='';inp.focus();}
-  prodRenderList('');
-  prodHighlightIdx=0;
-  prodApplyHighlight();
 }
 
-function toggleProduct(name){prodSelect(name);}
-function filterProducts(){prodRenderList(document.getElementById('prod-search')?.value||'');}
-function moveProdFocus(){}
-function handleProdKey(e){prodOnKey(e);}
-function onProdInput(v){prodOnInput(v);}
-function onProdKeyDown(e){prodOnKey(e);}
-
-function updateTrigger(){
-  const left=document.getElementById('prod-trigger-left');
-  if(!left)return;
-  left.innerHTML=selectedProducts.map(p=>`
-    <span class="prod-selected-tag">
-      ${escHtml(p)}
-      <span class="remove-tag" onclick="event.stopPropagation();prodSelect('${escHtml(p)}')">×</span>
-    </span>`).join('');
-  const inp=document.getElementById('prod-input');
-  if(inp) inp.placeholder=selectedProducts.length?'':'Ürün yazın veya seçin...';
-  setText('prod-count', selectedProducts.length>0?selectedProducts.length+' seçili':'');
-}
-
-function removeSelected(name){prodSelect(name);}
-
-function quickAddProduct(){
+function quickAddProduct() {
   prodClose();
   document.getElementById('prod-overlay').classList.add('open');
-  setTimeout(()=>document.getElementById('new-prod-modal').focus(),80);
+  setTimeout(function() { document.getElementById('new-prod-modal').focus(); }, 80);
 }
 
 // ════════════════════════════════════════
@@ -1632,6 +1688,10 @@ function initForm(order){
     document.getElementById('f-aksesuar').value='';
   }
   updateTrigger();
+  // Input'a seçili ürünü yaz
+  var pi = document.getElementById('prod-input');
+  if (pi) pi.value = selectedProducts.length >= 1 ? selectedProducts[0] : '';
+  setTimeout(function(){prodRenderList('');},50);
 }
 
 function resetForm(){
