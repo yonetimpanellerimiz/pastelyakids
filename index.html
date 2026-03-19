@@ -666,31 +666,27 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
         <div class="form-card">
           <div class="form-card-title">Ürün Seçimi</div>
           <label class="f-label">Ürünler <span style="color:var(--accent)">*</span></label>
-          <div class="prod-dropdown-wrap" id="prod-wrap">
-            <div class="prod-trigger" id="prod-trigger-wrap">
-              <div class="prod-trigger-left" id="prod-trigger-left">
-                <span class="prod-trigger-placeholder" id="prod-placeholder">Ürün seçin...</span>
-              </div>
+          <div style="position:relative" id="prod-wrap">
+            <!-- Seçili ürünler + input -->
+            <div class="prod-trigger" id="prod-trigger-wrap" onclick="document.getElementById('prod-input').focus()" style="cursor:text;display:flex;flex-wrap:wrap;gap:5px;align-items:center;min-height:38px">
+              <div id="prod-trigger-left" style="display:flex;flex-wrap:wrap;gap:5px"></div>
               <input
                 id="prod-input"
                 tabindex="4"
                 autocomplete="off"
-                placeholder=""
-                oninput="onProdInput(this.value)"
-                onkeydown="onProdKeyDown(event)"
-                style="border:none;outline:none;background:transparent;font-size:13px;font-family:var(--font);color:var(--text);min-width:60px;padding:0;flex:1"
+                placeholder="Ürün yazın veya seçin..."
+                oninput="prodOnInput(this.value)"
+                onkeydown="prodOnKey(event)"
+                onfocus="prodOpen()"
+                style="border:none;outline:none;background:transparent;font-size:13px;font-family:var(--font);color:var(--text);min-width:120px;padding:0;flex:1"
               >
-              <span class="prod-trigger-arrow" id="prod-arrow" onclick="toggleDropdown()" style="cursor:pointer;flex-shrink:0">▼</span>
             </div>
-            <div class="prod-dropdown" id="prod-dropdown">
-              <div class="prod-search-row" style="display:none">
-                <span class="prod-search-icon">🔍</span>
-                <input class="prod-search" id="prod-search" placeholder="Harf yazarak filtrele..." oninput="filterProducts()" tabindex="-1" autocomplete="off">
-              </div>
-              <div class="prod-list" id="prod-list"></div>
-              <div class="prod-footer">
+            <!-- Açılır liste -->
+            <div id="prod-dropdown" style="display:none;position:absolute;z-index:50;width:100%;background:var(--surface);border:.5px solid var(--border2);border-radius:var(--radius-lg);margin-top:4px;box-shadow:0 8px 28px rgba(0,0,0,.13);overflow:hidden">
+              <div id="prod-list" style="max-height:260px;overflow-y:auto"></div>
+              <div style="padding:8px 12px;border-top:.5px solid var(--border);display:flex;justify-content:space-between;align-items:center">
                 <button class="prod-add-inline" onclick="quickAddProduct()">+ Yeni ürün ekle</button>
-                <span class="prod-count" id="prod-count"></span>
+                <span id="prod-count" style="font-size:11px;color:var(--text3)"></span>
               </div>
             </div>
           </div>
@@ -1448,157 +1444,163 @@ function addMktFromModal(){
 }
 
 // ════════════════════════════════════════
-//  ÜRÜN AÇILIR PENCERE
+//  ÜRÜN SEÇİM (Excel tarzı)
 // ════════════════════════════════════════
-function toggleDropdown(){
-  dropdownOpen?closeDropdown():openDropdown();
-}
+let prodHighlightIdx=-1;
 
-function openDropdown(){
+function prodOpen(){
+  const dd=document.getElementById('prod-dropdown');
+  if(dd) dd.style.display='block';
   dropdownOpen=true;
-  document.getElementById('prod-dropdown').classList.add('open');
-  document.getElementById('prod-arrow').classList.add('open');
-  const inp=document.getElementById('prod-input');
-  const q=inp?inp.value:'';
-  renderProdList(q);
-  setTimeout(()=>moveProdFocus(0),60);
+  prodRenderList(document.getElementById('prod-input')?.value||'');
 }
 
-function closeDropdown(){
+function prodClose(){
+  const dd=document.getElementById('prod-dropdown');
+  if(dd) dd.style.display='none';
   dropdownOpen=false;
-  document.getElementById('prod-dropdown').classList.remove('open');
-  document.getElementById('prod-arrow').classList.remove('open');
+  prodHighlightIdx=-1;
+  const inp=document.getElementById('prod-input');
+  if(inp) inp.value='';
 }
 
-function moveProdFocus(startIdx){
+function toggleDropdown(){
+  dropdownOpen?prodClose():prodOpen();
+}
+function openDropdown(){prodOpen();}
+function closeDropdown(){prodClose();}
+
+function prodOnInput(val){
+  prodOpen();
+  prodRenderList(val);
+  prodHighlightIdx=0;
+  prodApplyHighlight();
+}
+
+function prodOnKey(e){
   const items=document.querySelectorAll('#prod-list .prod-item');
-  if(!items.length) return;
-  const idx=Math.max(0,Math.min(startIdx,items.length-1));
-  items.forEach(i=>i.style.background='');
-  items[idx].style.background='var(--surface2)';
-  items[idx].focus();
-  items[idx].onkeydown=function(e){
-    if(e.key==='ArrowDown'){e.preventDefault();if(idx+1<items.length)moveProdFocus(idx+1);}
-    if(e.key==='ArrowUp'){e.preventDefault();if(idx>0)moveProdFocus(idx-1);else{document.getElementById('prod-input').focus();}}
-    if(e.key==='Enter'||e.key===' '){e.preventDefault();items[idx].click();}
-    if(e.key==='Tab'){e.preventDefault();closeDropdown();document.getElementById('f-detay').focus();}
-    if(e.key==='Escape'){closeDropdown();document.getElementById('prod-input').focus();}
-  };
-}
-
-// Input'a yazınca çalışır
-function onProdInput(val){
-  if(!dropdownOpen){
-    dropdownOpen=true;
-    document.getElementById('prod-dropdown').classList.add('open');
-    document.getElementById('prod-arrow').classList.add('open');
-  }
-  renderProdList(val);
-  const vLow=val.trim().toLocaleLowerCase('tr-TR');
-  if(vLow.length<2){
-    // Tek harf — sadece listele, ilkini vurgula
-    setTimeout(()=>moveProdFocus(0),50);
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    if(!dropdownOpen){prodOpen();return;}
+    prodHighlightIdx=Math.min(prodHighlightIdx+1,items.length-1);
+    prodApplyHighlight();
     return;
   }
-  const matches=products.filter(p=>p.toLocaleLowerCase('tr-TR').startsWith(vLow)&&!selectedProducts.includes(p));
-  if(matches.length===1){
-    // Tek eşleşme — otomatik seç
-    toggleProduct(matches[0]);
-    document.getElementById('prod-input').value='';
-    closeDropdown();
-    toast(matches[0]+' seçildi','success');
-  } else if(matches.length>1){
-    setTimeout(()=>moveProdFocus(0),50);
+  if(e.key==='ArrowUp'){
+    e.preventDefault();
+    prodHighlightIdx=Math.max(prodHighlightIdx-1,0);
+    prodApplyHighlight();
+    return;
+  }
+  if(e.key==='Enter'){
+    e.preventDefault();
+    if(items[prodHighlightIdx]){
+      items[prodHighlightIdx].click();
+    }
+    return;
+  }
+  if(e.key==='Tab'){
+    // Tab: highlighted varsa seç, sonra devam et
+    if(dropdownOpen&&items[prodHighlightIdx]){
+      e.preventDefault();
+      items[prodHighlightIdx].click();
+    } else {
+      prodClose();
+    }
+    return;
+  }
+  if(e.key==='Escape'){
+    prodClose();
+    return;
   }
 }
 
-// Keyboard handler
-function onProdKeyDown(e){
-  if(e.key==='Escape'){closeDropdown();return;}
-  if(e.key==='Tab'){closeDropdown();return;}
-  if(e.key==='ArrowDown'){e.preventDefault();if(!dropdownOpen)openDropdown();else moveProdFocus(0);return;}
+function prodApplyHighlight(){
+  const items=document.querySelectorAll('#prod-list .prod-item');
+  items.forEach((el,i)=>{
+    el.style.background=i===prodHighlightIdx?'var(--surface2)':'';
+    el.style.outline=i===prodHighlightIdx?'2px solid var(--accent)':'none';
+    el.style.outlineOffset='-2px';
+    if(i===prodHighlightIdx) el.scrollIntoView({block:'nearest'});
+  });
 }
 
-function handleProdKey(e){onProdKeyDown(e);}
-
-function filterProducts(){
-  const q=document.getElementById('prod-input')?.value||'';
-  renderProdList(q);
-}
-
-
-function renderProdList(query){
+function prodRenderList(query){
   const list=document.getElementById('prod-list');
-  const q=query.trim().toLowerCase();
-  let filtered=products;
-  if(q) filtered=products.filter(p=>p.toLowerCase().startsWith(q));
+  const q=query.trim().toLocaleLowerCase('tr-TR');
+  let filtered=q?products.filter(p=>p.toLocaleLowerCase('tr-TR').startsWith(q)):products;
 
   if(!filtered.length){
-    list.innerHTML=`<div class="prod-empty">${q?'"'+query+'" ile başlayan ürün yok.':'Henüz ürün eklenmemiş.'}<br><span style="font-size:11px">Aşağıdan ekleyebilirsiniz.</span></div>`;
+    list.innerHTML=`<div style="padding:14px;text-align:center;font-size:12px;color:var(--text3)">${q?'"'+query+'" ile başlayan ürün yok.':'Henüz ürün eklenmemiş.'}</div>`;
     setText('prod-count','');
     return;
   }
 
-  // Baş harfe göre grupla (sadece filtre yokken)
-  let html='';
+  // Baş harfe göre grupla (filtre yokken)
   if(!q){
     const groups={};
-    filtered.forEach(p=>{const k=p[0].toLocaleUpperCase('tr-TR');groups[k]=(groups[k]||[]);groups[k].push(p);});
-    Object.keys(groups).sort().forEach(letter=>{
-      html+=`<div class="prod-item-group">${letter}</div>`;
-      groups[letter].forEach(p=>{
+    filtered.forEach(p=>{const k=p[0].toLocaleUpperCase('tr-TR');if(!groups[k])groups[k]=[];groups[k].push(p);});
+    list.innerHTML=Object.keys(groups).sort().map(letter=>
+      `<div style="padding:4px 12px 2px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);background:var(--surface2)">${letter}</div>`+
+      groups[letter].map(p=>{
         const sel=selectedProducts.includes(p);
-        html+=`<div class="prod-item${sel?' checked':''}" tabindex="-1" onclick="toggleProduct('${escHtml(p)}')">
-          <span>${escHtml(p)}</span><span class="check-ico">✓</span>
+        return `<div class="prod-item${sel?' checked':''}" tabindex="-1" onclick="prodSelect('${escHtml(p)}')" style="padding:10px 14px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:space-between;transition:background .08s;${sel?'background:var(--accent-bg);color:var(--accent);font-weight:500':''}">
+          <span>${escHtml(p)}</span>
+          <span style="font-size:14px;color:var(--accent);opacity:${sel?1:0}">✓</span>
         </div>`;
-      });
-    });
+      }).join('')
+    ).join('');
   } else {
-    filtered.forEach(p=>{
+    list.innerHTML=filtered.map(p=>{
       const sel=selectedProducts.includes(p);
-      html+=`<div class="prod-item${sel?' checked':''}" tabindex="-1" onclick="toggleProduct('${escHtml(p)}')">
-        <span>${escHtml(p)}</span><span class="check-ico">✓</span>
+      return `<div class="prod-item${sel?' checked':''}" tabindex="-1" onclick="prodSelect('${escHtml(p)}')" style="padding:10px 14px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:space-between;${sel?'background:var(--accent-bg);color:var(--accent);font-weight:500':''}">
+        <span>${escHtml(p)}</span>
+        <span style="font-size:14px;color:var(--accent);opacity:${sel?1:0}">✓</span>
       </div>`;
-    });
+    }).join('');
   }
 
-  list.innerHTML=html;
-  setText('prod-count', selectedProducts.length>0 ? selectedProducts.length+' seçili' : '');
+  setText('prod-count', selectedProducts.length>0?selectedProducts.length+' seçili':'');
+  prodHighlightIdx=0;
+  prodApplyHighlight();
 }
 
-function toggleProduct(name){
+function prodSelect(name){
   const idx=selectedProducts.indexOf(name);
   if(idx>=0) selectedProducts.splice(idx,1);
   else selectedProducts.push(name);
   updateTrigger();
   const inp=document.getElementById('prod-input');
-  if(inp) inp.value='';
-  renderProdList('');
+  if(inp){inp.value='';inp.focus();}
+  prodRenderList('');
+  prodHighlightIdx=0;
+  prodApplyHighlight();
 }
+
+function toggleProduct(name){prodSelect(name);}
+function filterProducts(){prodRenderList(document.getElementById('prod-search')?.value||'');}
+function moveProdFocus(){}
+function handleProdKey(e){prodOnKey(e);}
+function onProdInput(v){prodOnInput(v);}
+function onProdKeyDown(e){prodOnKey(e);}
 
 function updateTrigger(){
   const left=document.getElementById('prod-trigger-left');
-  const ph=document.getElementById('prod-placeholder');
-  if(selectedProducts.length===0){
-    left.innerHTML='<span class="prod-trigger-placeholder" id="prod-placeholder">Ürün seçmek için tıklayın...</span>';
-  } else {
-    left.innerHTML=selectedProducts.map(p=>`
-      <span class="prod-selected-tag">
-        ${escHtml(p)}
-        <span class="remove-tag" onclick="event.stopPropagation();removeSelected('${escHtml(p)}')">×</span>
-      </span>`).join('');
-  }
+  if(!left)return;
+  left.innerHTML=selectedProducts.map(p=>`
+    <span class="prod-selected-tag">
+      ${escHtml(p)}
+      <span class="remove-tag" onclick="event.stopPropagation();prodSelect('${escHtml(p)}')">×</span>
+    </span>`).join('');
+  const inp=document.getElementById('prod-input');
+  if(inp) inp.placeholder=selectedProducts.length?'':'Ürün yazın veya seçin...';
   setText('prod-count', selectedProducts.length>0?selectedProducts.length+' seçili':'');
 }
 
-function removeSelected(name){
-  selectedProducts=selectedProducts.filter(p=>p!==name);
-  updateTrigger();
-  if(dropdownOpen) renderProdList(document.getElementById('prod-search').value||'');
-}
+function removeSelected(name){prodSelect(name);}
 
 function quickAddProduct(){
-  closeProdModal();
+  prodClose();
   document.getElementById('prod-overlay').classList.add('open');
   setTimeout(()=>document.getElementById('new-prod-modal').focus(),80);
 }
