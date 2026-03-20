@@ -3512,8 +3512,8 @@ const LINK_DEFAULTS=[
   {id:'tiktok',     label:'TikTok',      icon:'https://cdn.simpleicons.org/tiktok/000000',      color:'#010101', url:''},
   {id:'youtube',    label:'YouTube',     icon:'https://cdn.simpleicons.org/youtube/FF0000',      color:'#ff0000', url:''},
   {id:'etsy',       label:'Etsy',        icon:'https://cdn.simpleicons.org/etsy/F1641E',         color:'#f1641e', url:''},
-  {id:'hepsiburada',label:'Hepsiburada', icon:'https://cdn.simpleicons.org/hepsiburada/FF6000',  color:'#ff6000', url:''},
-  {id:'trendyol',   label:'Trendyol',    icon:'https://cdn.simpleicons.org/trendyol/F27A1A',     color:'#f27a1a', url:''},
+  {id:'hepsiburada',label:'Hepsiburada', icon:'hepsiburada',  color:'#ff6000', url:''},
+  {id:'trendyol',   label:'Trendyol',    icon:'trendyol',     color:'#f27a1a', url:''},
   {id:'amazon',     label:'Amazon',      icon:'https://cdn.simpleicons.org/amazon/FF9900',        color:'#ff9900', url:''},
   {id:'shopify',    label:'Shopify',     icon:'https://cdn.simpleicons.org/shopify/96BF48',       color:'#96bf48', url:''},
 ];
@@ -3535,6 +3535,17 @@ function loadLinks(){
 }
 function saveLinks(){localStorage.setItem(LINKS_KEY,JSON.stringify(socialLinks));}
 
+function getLinkIconHtml(l, size){
+  size = size || 22;
+  if(l.icon === 'trendyol'){
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="32" fill="#f27a1a"/><path d="M32 12c-11 0-20 9-20 20s9 20 20 20 20-9 20-20-9-20-20-20zm0 6c7.7 0 14 6.3 14 14s-6.3 14-14 14-14-6.3-14-14 6.3-14 14-14z" fill="#fff"/><circle cx="32" cy="32" r="6" fill="#fff"/></svg>';
+  }
+  if(l.icon === 'hepsiburada'){
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="12" fill="#ff6000"/><text x="32" y="42" font-family="Arial,sans-serif" font-size="28" font-weight="900" fill="#fff" text-anchor="middle">H</text></svg>';
+  }
+  return '<img src="'+escHtml(l.icon)+'" alt="'+escHtml(l.label)+'" style="width:'+size+'px;height:'+size+'px;object-fit:contain;flex-shrink:0">';
+}
+
 function renderDashboardLinks(){
   var cont=document.getElementById('db-social-links');
   if(!cont)return;
@@ -3547,7 +3558,7 @@ function renderDashboardLinks(){
     return '<a href="'+escHtml(l.url)+'" target="_blank" rel="noopener" '
       +'style="display:inline-flex;align-items:center;gap:8px;padding:9px 16px;background:var(--surface2);border:.5px solid var(--border2);border-radius:var(--radius-lg);text-decoration:none;font-size:13px;font-weight:500;color:var(--text);transition:all .15s;border-bottom:2.5px solid '+escHtml(l.color)+'" '
       +'onmouseover="this.style.background=\''+escHtml(l.color)+'18\'" onmouseout="this.style.background=\'var(--surface2)\'">'
-      +'<img src="'+escHtml(l.icon)+'" alt="'+escHtml(l.label)+'" style="width:20px;height:20px;object-fit:contain">'
+      +getLinkIconHtml(l,20)
       +'<span>'+escHtml(l.label)+'</span>'
       +'</a>';
   }).join('');
@@ -3558,7 +3569,7 @@ function renderLinkSettings(){
   if(!cont)return;
   cont.innerHTML=socialLinks.map(function(l,i){
     return '<div style="display:flex;align-items:center;gap:10px">'
-      +'<img src="'+escHtml(l.icon)+'" alt="'+escHtml(l.label)+'" style="width:24px;height:24px;object-fit:contain;flex-shrink:0">'
+      +getLinkIconHtml(l,24)
       +'<span style="font-size:13px;font-weight:500;width:110px;color:var(--text)">'+escHtml(l.label)+'</span>'
       +'<input class="f-input" placeholder="https://..." value="'+escHtml(l.url||'')+'" '
       +'onchange="updateLink('+i+',this.value)" '
