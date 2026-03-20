@@ -378,6 +378,9 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
     <div class="nav-item" onclick="document.getElementById('importFile').click()">
       <span class="nav-ico">📤</span>Yedek Yükle
     </div>
+    <div class="nav-item" id="nav-linkler" onclick="goto('linkler',this)">
+      <span class="nav-ico">🔗</span>Link Ayarları
+    </div>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
   </nav>
   <div class="sidebar-bottom">
@@ -432,70 +435,25 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
         </div>
       </div>
 
-      <!-- Son siparişler + Sorunlu özet -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-        <div>
-          <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Son Eklenen Siparişler</div>
-          <div class="tbl-wrap">
-            <table>
-              <thead><tr>
-                <th>Müşteri</th>
-                <th style="width:100px">Platform</th>
-                <th style="width:100px">Durum</th>
-                <th style="width:75px">Tarih</th>
-              </tr></thead>
-              <tbody id="db-recent"></tbody>
-            </table>
-          </div>
+      <!-- Sosyal & Platform Linkleri -->
+      <div style="margin-top:16px;background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">Hızlı Erişim</div>
+          <button onclick="goto('linkler',document.getElementById('nav-linkler'))" style="font-size:11px;color:var(--accent);background:none;border:none;cursor:pointer;font-family:var(--font)">Linkleri Düzenle →</button>
         </div>
-        <div>
-          <div style="font-size:12px;font-weight:600;color:#dc2626;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">⚠ Sorunlu Siparişler</div>
-          <div class="tbl-wrap">
-            <table>
-              <thead><tr>
-                <th>Müşteri</th>
-                <th style="width:130px">Sorun</th>
-                <th style="width:75px">Tarih</th>
-              </tr></thead>
-              <tbody id="db-sorunlu"></tbody>
-            </table>
-          </div>
-        </div>
+        <div id="db-social-links" style="display:flex;flex-wrap:wrap;gap:10px"></div>
       </div>
 
-      <!-- Harcama widget -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-        <div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">💸 Son Harcamalar</div>
-            <button onclick="goto('butce',document.getElementById('nav-butce'))" style="font-size:11px;color:var(--accent);background:none;border:none;cursor:pointer;font-family:var(--font)">Tümünü gör →</button>
-          </div>
-          <div class="tbl-wrap">
-            <table>
-              <thead><tr>
-                <th style="width:80px">Tarih</th>
-                <th>Açıklama</th>
-                <th style="width:90px">Kim</th>
-                <th style="width:90px">Tutar</th>
-              </tr></thead>
-              <tbody id="db-harcama"></tbody>
-            </table>
-          </div>
-        </div>
-        <div>
-          <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Bu Ay Özet</div>
-          <div class="tbl-wrap" style="padding:16px">
-            <div style="display:flex;flex-direction:column;gap:10px">
-              <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:.5px solid var(--border)">
-                <span style="font-size:13px;color:var(--text2)">Bu ay toplam</span>
-                <span style="font-size:20px;font-weight:700;color:var(--accent)" id="db-harcama-ay">₺0</span>
-              </div>
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <span style="font-size:13px;color:var(--text2)">Tüm zamanlar</span>
-                <span style="font-size:16px;font-weight:600;color:var(--text)" id="db-harcama-toplam">₺0</span>
-              </div>
-            </div>
-          </div>
+    </div>
+
+    <!-- ══ LINK AYARLARI ══ -->
+    <div class="page" id="page-linkler">
+      <div style="max-width:600px">
+        <div style="background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius-xl);padding:24px">
+          <div style="font-size:14px;font-weight:600;margin-bottom:6px">🔗 Platform & Sosyal Medya Linkleri</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:20px">Dashboard'da görünen hızlı erişim linklerini buradan yönetin.</div>
+          <div id="link-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px"></div>
+          <div style="font-size:11px;color:var(--text3)">Linki boş bırakırsanız o ikon gösterilmez.</div>
         </div>
       </div>
     </div>
@@ -1242,7 +1200,7 @@ function saveMarkets(){
 // ════════════════════════════════════════
 //  NAVIGATION
 // ════════════════════════════════════════
-const pageTitles={dashboard:'Dashboard',notlar:'Not & Görevler',yeni:'Yeni Sipariş',liste:'Tüm Siparişler',uretim:'Üretim Takibi',kargo:'Kargo Takibi',rapor:'Raporlar',urunler:'Ürün Listesi',pazarlar:'Pazar Yerleri',sorunlu:'Sorunlu Siparişler',desi:'Desi Kontrol',log:'İşlem Geçmişi',puantaj:'Puantaj',fiyat:'Fiyat Listesi',butce:'Harcamalar'};
+const pageTitles={dashboard:'Dashboard',notlar:'Not & Görevler',linkler:'Link Ayarları',yeni:'Yeni Sipariş',liste:'Tüm Siparişler',uretim:'Üretim Takibi',kargo:'Kargo Takibi',rapor:'Raporlar',urunler:'Ürün Listesi',pazarlar:'Pazar Yerleri',sorunlu:'Sorunlu Siparişler',desi:'Desi Kontrol',log:'İşlem Geçmişi',puantaj:'Puantaj',fiyat:'Fiyat Listesi',butce:'Harcamalar'};
 
 function goto(page,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1257,6 +1215,7 @@ function goto(page,el){
   if(page!=='log') logUnlocked=false;
   closeMktDropdown();closeDropdown();
   if(page==='dashboard'){setTimeout(renderDashboard,100);}
+  if(page==='linkler'){renderLinkSettings();}
   if(page==='notlar'){renderNotlar();renderGorevler();}
   if(page==='yeni'){initForm();setTimeout(()=>document.getElementById('f-name').focus(),80);}
   if(page==='liste'){
@@ -1816,6 +1775,7 @@ function renderDashboard(){
       </tr>`).join('')
     : '<tr><td colspan="3" class="no-data" style="color:#2d7a3a">✅ Sorunlu sipariş yok</td></tr>';
   renderDashboardHarcama();
+  renderDashboardLinks();
 }
 
 // ════════════════════════════════════════
@@ -3543,12 +3503,86 @@ function updateNotBadge(){
 }
 
 // ════════════════════════════════════════
+//  SOSYAL & PLATFORM LİNKLERİ
+// ════════════════════════════════════════
+const LINKS_KEY='sosyal_linkler_v2';
+const LINK_DEFAULTS=[
+  {id:'instagram',  label:'Instagram',   icon:'https://cdn.simpleicons.org/instagram/E1306C',   color:'#e1306c', url:''},
+  {id:'whatsapp',   label:'WhatsApp',    icon:'https://cdn.simpleicons.org/whatsapp/25D366',    color:'#25d366', url:''},
+  {id:'tiktok',     label:'TikTok',      icon:'https://cdn.simpleicons.org/tiktok/000000',      color:'#010101', url:''},
+  {id:'youtube',    label:'YouTube',     icon:'https://cdn.simpleicons.org/youtube/FF0000',      color:'#ff0000', url:''},
+  {id:'etsy',       label:'Etsy',        icon:'https://cdn.simpleicons.org/etsy/F1641E',         color:'#f1641e', url:''},
+  {id:'hepsiburada',label:'Hepsiburada', icon:'https://cdn.simpleicons.org/hepsiburada/FF6000',  color:'#ff6000', url:''},
+  {id:'trendyol',   label:'Trendyol',    icon:'https://cdn.simpleicons.org/trendyol/F27A1A',     color:'#f27a1a', url:''},
+  {id:'amazon',     label:'Amazon',      icon:'https://cdn.simpleicons.org/amazon/FF9900',        color:'#ff9900', url:''},
+  {id:'shopify',    label:'Shopify',     icon:'https://cdn.simpleicons.org/shopify/96BF48',       color:'#96bf48', url:''},
+];
+let socialLinks=[];
+
+function loadLinks(){
+  try{socialLinks=JSON.parse(localStorage.getItem(LINKS_KEY))||[];}catch{socialLinks=[];}
+  // Eksik linkleri ekle, icon'ları güncelle
+  LINK_DEFAULTS.forEach(function(def){
+    var existing=socialLinks.find(function(l){return l.id===def.id;});
+    if(!existing){
+      socialLinks.push(Object.assign({},def));
+    } else {
+      // Icon her zaman güncel CDN'den gelsin
+      existing.icon=def.icon;
+      existing.color=def.color;
+    }
+  });
+}
+function saveLinks(){localStorage.setItem(LINKS_KEY,JSON.stringify(socialLinks));}
+
+function renderDashboardLinks(){
+  var cont=document.getElementById('db-social-links');
+  if(!cont)return;
+  var active=socialLinks.filter(function(l){return l.url&&l.url.trim();});
+  if(!active.length){
+    cont.innerHTML='<div style="font-size:12px;color:var(--text3)">Henüz link eklenmedi. <span style="color:var(--accent);cursor:pointer" onclick="goto(\'linkler\',document.getElementById(\'nav-linkler\'))">Linkleri düzenle →</span></div>';
+    return;
+  }
+  cont.innerHTML=active.map(function(l){
+    return '<a href="'+escHtml(l.url)+'" target="_blank" rel="noopener" '
+      +'style="display:inline-flex;align-items:center;gap:8px;padding:9px 16px;background:var(--surface2);border:.5px solid var(--border2);border-radius:var(--radius-lg);text-decoration:none;font-size:13px;font-weight:500;color:var(--text);transition:all .15s;border-bottom:2.5px solid '+escHtml(l.color)+'" '
+      +'onmouseover="this.style.background=\''+escHtml(l.color)+'18\'" onmouseout="this.style.background=\'var(--surface2)\'">'
+      +'<img src="'+escHtml(l.icon)+'" alt="'+escHtml(l.label)+'" style="width:20px;height:20px;object-fit:contain">'
+      +'<span>'+escHtml(l.label)+'</span>'
+      +'</a>';
+  }).join('');
+}
+
+function renderLinkSettings(){
+  var cont=document.getElementById('link-list');
+  if(!cont)return;
+  cont.innerHTML=socialLinks.map(function(l,i){
+    return '<div style="display:flex;align-items:center;gap:10px">'
+      +'<img src="'+escHtml(l.icon)+'" alt="'+escHtml(l.label)+'" style="width:24px;height:24px;object-fit:contain;flex-shrink:0">'
+      +'<span style="font-size:13px;font-weight:500;width:110px;color:var(--text)">'+escHtml(l.label)+'</span>'
+      +'<input class="f-input" placeholder="https://..." value="'+escHtml(l.url||'')+'" '
+      +'onchange="updateLink('+i+',this.value)" '
+      +'style="flex:1;font-size:13px;padding:7px 10px">'
+      +'</div>';
+  }).join('');
+}
+
+function updateLink(idx,val){
+  if(!socialLinks[idx])return;
+  socialLinks[idx].url=val.trim();
+  saveLinks();
+  renderDashboardLinks();
+  toast('Link kaydedildi.','success');
+}
+
+// ════════════════════════════════════════
 //  INIT
 // ════════════════════════════════════════
 loadData();
 loadHarcamalar();
 loadNotlar();
 loadGorevler();
+loadLinks();
 // Firebase hazır olduğunda senkronize et
 document.addEventListener('firebase-ready', ()=>syncFromFirebase());
 if(window.firebaseReady) syncFromFirebase();
