@@ -3377,7 +3377,13 @@ function platBadge(id){
   return `<span style="display:inline-block;padding:3px 9px;border-radius:5px;font-size:11px;font-weight:600;white-space:nowrap;background:${bg};color:${m.color};border:.5px solid ${border}">${escHtml(m.label)}</span>`;
 }
 function genId(){return 'S-'+Date.now().toString(36).toUpperCase().slice(-5);}
-function todayStr(){return new Date().toISOString().split('T')[0];}
+function todayStr(){
+  var d=new Date();
+  var y=d.getFullYear();
+  var m=String(d.getMonth()+1).padStart(2,'0');
+  var day=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day;
+}
 function fmtDate(d){if(!d)return'—';return new Date(d).toLocaleDateString('tr-TR',{day:'numeric',month:'short'});}
 function fmtDateFull(d){if(!d)return'—';return new Date(d).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'});}
 function setText(id,val){const el=document.getElementById(id);if(el)el.textContent=val;}
