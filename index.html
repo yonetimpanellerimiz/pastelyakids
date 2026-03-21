@@ -3544,32 +3544,34 @@ function updateNotBadge(){
 // ════════════════════════════════════════
 const LINKS_KEY='sosyal_linkler_v2';
 const LINK_DEFAULTS=[
-  {id:'instagram',  label:'Instagram',   icon:'https://cdn.simpleicons.org/instagram/E1306C',   color:'#e1306c', url:''},
-  {id:'whatsapp',   label:'WhatsApp',    icon:'https://cdn.simpleicons.org/whatsapp/25D366',    color:'#25d366', url:''},
-  {id:'tiktok',     label:'TikTok',      icon:'https://cdn.simpleicons.org/tiktok/000000',      color:'#010101', url:''},
-  {id:'youtube',    label:'YouTube',     icon:'https://cdn.simpleicons.org/youtube/FF0000',      color:'#ff0000', url:''},
-  {id:'etsy',       label:'Etsy',        icon:'https://cdn.simpleicons.org/etsy/F1641E',         color:'#f1641e', url:''},
-  {id:'hepsiburada',label:'Hepsiburada', icon:'hepsiburada',  color:'#ff6000', url:''},
-  {id:'trendyol',   label:'Trendyol',    icon:'trendyol',     color:'#f27a1a', url:''},
+  {id:'instagram',  label:'Instagram',   icon:'https://cdn.simpleicons.org/instagram/E1306C',   color:'#e1306c', url:'https://www.instagram.com/pastelyakids/'},
+  {id:'whatsapp',   label:'WhatsApp',    icon:'https://cdn.simpleicons.org/whatsapp/25D366',    color:'#25d366', url:'https://api.whatsapp.com/send/?phone=905308945930&text&type=phone_number&app_absent=0'},
+  {id:'tiktok',     label:'TikTok',      icon:'https://cdn.simpleicons.org/tiktok/000000',      color:'#010101', url:'https://www.tiktok.com/@pastelyakids'},
+  {id:'youtube',    label:'YouTube',     icon:'https://cdn.simpleicons.org/youtube/FF0000',      color:'#ff0000', url:'https://www.youtube.com/@pastelyakids/featured'},
+  {id:'etsy',       label:'Etsy',        icon:'https://cdn.simpleicons.org/etsy/F1641E',         color:'#f1641e', url:'https://www.etsy.com/shop/PastelyaKidsTepee?ref=seller-platform-mcnav'},
+  {id:'hepsiburada',label:'Hepsiburada', icon:'hepsiburada',                                    color:'#ff6000', url:'https://www.hepsiburada.com/magaza/miniden'},
+  {id:'trendyol',   label:'Trendyol',    icon:'trendyol',                                       color:'#f27a1a', url:'https://www.trendyol.com/magaza/pastelya-kids-m-117336?channelId=1&sst=0'},
   {id:'amazon',     label:'Amazon',      icon:'https://cdn.simpleicons.org/amazon/FF9900',        color:'#ff9900', url:''},
-  {id:'shopify',    label:'Shopify',     icon:'https://cdn.simpleicons.org/shopify/96BF48',       color:'#96bf48', url:''},
+  {id:'shopify',    label:'Shopify',     icon:'https://cdn.simpleicons.org/shopify/96BF48',       color:'#96bf48', url:'https://www.pastelyakids.com/'},
 ];
 let socialLinks=[];
 
 function loadLinks(){
   try{socialLinks=JSON.parse(localStorage.getItem(LINKS_KEY))||[];}catch{socialLinks=[];}
-  // Eksik linkleri ekle, icon/color güncelle ama url'yi koru
   LINK_DEFAULTS.forEach(function(def){
     var existing=socialLinks.find(function(l){return l.id===def.id;});
     if(!existing){
-      socialLinks.push({id:def.id,label:def.label,icon:def.icon,color:def.color,url:''});
+      socialLinks.push({id:def.id,label:def.label,icon:def.icon,color:def.color,url:def.url});
     } else {
       existing.icon=def.icon;
       existing.color=def.color;
       existing.label=def.label;
-      // url'ye DOKUNMA
+      // URL boşsa default'u kullan
+      if(!existing.url&&def.url) existing.url=def.url;
     }
   });
+  // Default URL'leri localStorage'a kaydet
+  saveLinks();
 }
 function saveLinks(){
   localStorage.setItem(LINKS_KEY,JSON.stringify(socialLinks));
