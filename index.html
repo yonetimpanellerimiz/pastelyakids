@@ -281,6 +281,8 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
 /* TOAST */
 .toast-wrap{position:fixed;bottom:24px;right:24px;z-index:200;display:flex;flex-direction:column;gap:8px;pointer-events:none}
 .toast{background:var(--text);color:#fff;padding:10px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;transform:translateY(10px);opacity:0;transition:all .25s;pointer-events:all}
+.gorev-popup{position:fixed;top:24px;right:24px;z-index:300;background:#fff;border:.5px solid var(--border2);border-radius:var(--radius-lg);box-shadow:0 8px 32px rgba(0,0,0,.15);padding:16px 18px;min-width:280px;max-width:360px;display:flex;gap:12px;align-items:flex-start;transform:translateX(120%);opacity:0;transition:all .35s cubic-bezier(.34,1.56,.64,1);pointer-events:all;cursor:pointer;border-left:4px solid #7c3aed}
+.gorev-popup.show{transform:translateX(0);opacity:1}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.success{background:#2d7a3a}
 .toast.error{background:#a83232}
@@ -1164,6 +1166,7 @@ async function syncFromFirebase(){
     const fbOrders=await window.fbGet('orders');
     const fbProducts=await window.fbGet('products');
     const fbMarkets=await window.fbGet('markets');
+    const fbLinks=await window.fbGet('socialLinks');
     if(fbOrders&&Array.isArray(fbOrders)){
       orders=fbOrders;
       localStorage.setItem(SK,JSON.stringify(orders));
@@ -1176,11 +1179,21 @@ async function syncFromFirebase(){
       markets=fbMarkets;
       localStorage.setItem(MK,JSON.stringify(markets));
     }
+    if(fbLinks&&Array.isArray(fbLinks)&&fbLinks.length){
+      // Firebase'den gelen URL'leri mevcut socialLinks'e aktar
+      fbLinks.forEach(function(fl){
+        var loc=socialLinks.find(function(l){return l.id===fl.id;});
+        if(loc&&fl.url) loc.url=fl.url;
+      });
+      localStorage.setItem(LINKS_KEY,JSON.stringify(socialLinks));
+    }
     // UI'ı güncelle
     const page=sessionStorage.getItem('activePage')||'dashboard';
     if(page==='liste') renderListPage();
     if(page==='dashboard') renderDashboard();
+    if(page==='linkler') renderLinkSettings();
     renderStats();
+    if(document.getElementById('db-social-links')) renderDashboardLinks();
     toast('Veriler senkronize edildi ✓','success');
   }catch(e){console.error('Firebase sync error:',e);}
 }
@@ -3424,6 +3437,49 @@ function addGorev(){
   document.getElementById('gorev-metin').value='';
   document.getElementById('gorev-kisi').value='';
   renderGorevler();updateNotBadge();
+  showGorevPopup(metin,kisi);
+}
+
+function showGorevPopup(metin,kisi){
+  const bekleyen=gorevlerData.filter(function(g){return !g.tamamlandi;}).length;
+
+  // Kaç popup var, alt alta diz
+  const existing=document.querySelectorAll('.gorev-popup');
+  const topOffset=24+(existing.length*90);
+
+  const popup=document.createElement('div');
+  popup.className='gorev-popup';
+  popup.style.top=topOffset+'px';
+  popup.innerHTML=
+    '<div style="font-size:22px;flex-shrink:0">📋</div>'
+    +'<div style="flex:1">'
+    +'<div style="font-size:12px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Yeni Görev Eklendi</div>'
+    +'<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">'+escHtml(metin)+'</div>'
+    +(kisi?'<div style="font-size:11px;color:var(--text2)">👤 '+escHtml(kisi)+'</div>':'')
+    +'<div style="font-size:11px;color:var(--text3);margin-top:4px">'+bekleyen+' bekleyen görev</div>'
+    +'</div>'
+    +'<button onclick="closeGorevPopup(this.parentElement)" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;padding:0;line-height:1;flex-shrink:0">×</button>';
+
+  popup.addEventListener('click',function(e){
+    if(e.target.tagName==='BUTTON') return;
+    goto('notlar',document.getElementById('nav-notlar'));
+  });
+
+  document.body.appendChild(popup);
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){popup.classList.add('show');});
+  });
+}
+
+function closeGorevPopup(popup){
+  popup.classList.remove('show');
+  setTimeout(function(){
+    if(popup.parentElement) popup.remove();
+    // Kalan popupları yukarı kaydır
+    document.querySelectorAll('.gorev-popup').forEach(function(p,i){
+      p.style.top=(24+(i*90))+'px';
+    });
+  },350);
 }
 
 function toggleGorev(id){
@@ -3502,19 +3558,23 @@ let socialLinks=[];
 
 function loadLinks(){
   try{socialLinks=JSON.parse(localStorage.getItem(LINKS_KEY))||[];}catch{socialLinks=[];}
-  // Eksik linkleri ekle, icon'ları güncelle
+  // Eksik linkleri ekle, icon/color güncelle ama url'yi koru
   LINK_DEFAULTS.forEach(function(def){
     var existing=socialLinks.find(function(l){return l.id===def.id;});
     if(!existing){
-      socialLinks.push(Object.assign({},def));
+      socialLinks.push({id:def.id,label:def.label,icon:def.icon,color:def.color,url:''});
     } else {
-      // Icon her zaman güncel CDN'den gelsin
       existing.icon=def.icon;
       existing.color=def.color;
+      existing.label=def.label;
+      // url'ye DOKUNMA
     }
   });
 }
-function saveLinks(){localStorage.setItem(LINKS_KEY,JSON.stringify(socialLinks));}
+function saveLinks(){
+  localStorage.setItem(LINKS_KEY,JSON.stringify(socialLinks));
+  if(window.fbSet) window.fbSet('socialLinks', socialLinks);
+}
 
 function getLinkIconHtml(l, size){
   size = size || 22;
