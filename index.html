@@ -1755,28 +1755,8 @@ function renderDashboard(){
       scales:{x:{grid:{color:gc},ticks:{color:lc,font:{size:10}}},y:{grid:{color:gc},ticks:{color:lc,font:{size:10}}}}}
   });
 
-  // Son 8 sipariş
-  const recent=[...orders].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8);
-  document.getElementById('db-recent').innerHTML=recent.length
-    ? recent.map(o=>`<tr onclick="goto('liste',document.getElementById('nav-liste'));setTimeout(()=>openDetail('${o.id}'),120)" style="cursor:pointer">
-        <td style="font-weight:600">${escHtml(o.name||'—')}</td>
-        <td>${platBadge(o.platform)}</td>
-        <td><span class="sbadge ${getStatusObj(o.status).cls}">${getStatusObj(o.status).label}</span></td>
-        <td class="muted">${fmtDate(o.date)}</td>
-      </tr>`).join('')
-    : '<tr><td colspan="4" class="no-data">Sipariş yok</td></tr>';
-
-  // Sorunlu özet
-  const sorunlar=orders.filter(o=>o.sorun).slice(0,8);
-  document.getElementById('db-sorunlu').innerHTML=sorunlar.length
-    ? sorunlar.map(o=>`<tr onclick="goto('liste',document.getElementById('nav-liste'));setTimeout(()=>openDetail('${o.id}'),120)" style="cursor:pointer">
-        <td style="font-weight:600">${escHtml(o.name||'—')}</td>
-        <td><span class="sorun-badge">⚠ ${escHtml(SORUN_CATS[o.sorun]||o.sorun)}</span></td>
-        <td class="muted">${fmtDate(o.date)}</td>
-      </tr>`).join('')
-    : '<tr><td colspan="3" class="no-data" style="color:#2d7a3a">✅ Sorunlu sipariş yok</td></tr>';
   renderDashboardHarcama();
-  renderDashboardLinks();
+  if(document.getElementById('db-social-links')) renderDashboardLinks();
 }
 
 // ════════════════════════════════════════
@@ -3549,7 +3529,7 @@ function getLinkIconHtml(l, size){
 
 function renderDashboardLinks(){
   var cont=document.getElementById('db-social-links');
-  if(!cont)return;
+  if(!cont) return; // Dashboard aktif değil, çık
   var active=socialLinks.filter(function(l){
     return l.url && String(l.url).trim().length > 0;
   });
