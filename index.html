@@ -1216,7 +1216,7 @@ function goto(page,el){
   closeMktDropdown();closeDropdown();
   if(page==='dashboard'){setTimeout(renderDashboard,100);}
   if(page==='linkler'){renderLinkSettings();}
-  if(page==='dashboard'||page==='linkler'){setTimeout(renderDashboardLinks,120);}
+  if(page==='dashboard'){setTimeout(renderDashboardLinks,200);}
   if(page==='notlar'){renderNotlar();renderGorevler();}
   if(page==='yeni'){initForm();setTimeout(()=>document.getElementById('f-name').focus(),80);}
   if(page==='liste'){
@@ -3550,7 +3550,9 @@ function getLinkIconHtml(l, size){
 function renderDashboardLinks(){
   var cont=document.getElementById('db-social-links');
   if(!cont)return;
-  var active=socialLinks.filter(function(l){return l.url&&l.url.trim();});
+  var active=socialLinks.filter(function(l){
+    return l.url && String(l.url).trim().length > 0;
+  });
   if(!active.length){
     cont.innerHTML='<div style="font-size:12px;color:var(--text3)">Henüz link eklenmedi. <span style="color:var(--accent);cursor:pointer" onclick="goto(\'linkler\',document.getElementById(\'nav-linkler\'))">Linkleri düzenle →</span></div>';
     return;
@@ -3584,7 +3586,9 @@ function updateLink(idx,val){
   if(!socialLinks[idx])return;
   socialLinks[idx].url=val.trim();
   saveLinks();
-  renderDashboardLinks();
+  // Dashboard açıksa yenile, değilse sadece veri kaydedildi
+  var cont=document.getElementById('db-social-links');
+  if(cont) renderDashboardLinks();
 }
 
 // ════════════════════════════════════════
