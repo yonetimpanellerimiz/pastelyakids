@@ -9,6 +9,7 @@
 // ══ FIREBASE ══
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD12Q7N8YHmJ1zhWXeZZiX34Ryp0WbeVug",
@@ -22,22 +23,29 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const auth = getAuth(app);
 
-// Firebase okuma/yazma yardımcıları — window'a ekle ki diğer scriptler erişebilsin
-window.fbSet = async (path, data) => {
-  try { await set(ref(db, path), data); } catch(e) { console.error('Firebase write error:', e); }
-};
-window.fbGet = async (path) => {
-  try {
-    const snap = await get(ref(db, path));
-    return snap.exists() ? snap.val() : null;
-  } catch(e) { console.error('Firebase read error:', e); return null; }
-};
-window.fbListen = (path, cb) => {
-  onValue(ref(db, path), snap => cb(snap.exists() ? snap.val() : null));
-};
-window.firebaseReady = true;
-document.dispatchEvent(new Event('firebase-ready'));
+// Anonim giriş yap, sonra Firebase erişimini aç
+signInAnonymously(auth).then(() => {
+  window.fbSet = async (path, data) => {
+    try { await set(ref(db, path), data); } catch(e) { console.error('Firebase write error:', e); }
+  };
+  window.fbGet = async (path) => {
+    try {
+      const snap = await get(ref(db, path));
+      return snap.exists() ? snap.val() : null;
+    } catch(e) { console.error('Firebase read error:', e); return null; }
+  };
+  window.fbListen = (path, cb) => {
+    onValue(ref(db, path), snap => cb(snap.exists() ? snap.val() : null));
+  };
+  window.firebaseReady = true;
+  document.dispatchEvent(new Event('firebase-ready'));
+}).catch(e => {
+  console.error('Firebase auth error:', e);
+  // Auth başarısız olursa yine de event'i tetikle (offline mod)
+  document.dispatchEvent(new Event('firebase-ready'));
+});
 </script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
@@ -323,6 +331,24 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
 </style>
 </head>
 <body>
+<!-- GİRİŞ EKRANI -->
+<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius-xl);padding:36px 40px;width:340px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.1)">
+    <div style="font-size:36px;margin-bottom:12px">🔐</div>
+    <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px">Sipariş Paneli</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:24px">Pastelya Kids</div>
+    <input id="login-pwd" type="password" placeholder="Şifre" class="f-input"
+      style="text-align:center;font-size:15px;letter-spacing:.1em;margin-bottom:12px"
+      onkeydown="if(event.key==='Enter')loginCheck()">
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px">
+      <input type="checkbox" id="login-remember" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)">
+      <label for="login-remember" style="font-size:13px;color:var(--text2);cursor:pointer">Beni hatırla</label>
+    </div>
+    <button onclick="loginCheck()" class="btn primary" style="width:100%;padding:10px;font-size:14px">Giriş Yap</button>
+    <div id="login-err" style="font-size:12px;color:var(--s-cancel);margin-top:10px;display:none">Hatalı şifre.</div>
+  </div>
+</div>
+
 <div class="app">
 
 <!-- ── SIDEBAR ── -->
@@ -355,6 +381,9 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
     <div class="nav-item" id="nav-rapor" onclick="goto('rapor',this)">
       <span class="nav-ico">📊</span>Raporlar
     </div>
+    <div class="nav-item" id="nav-reklamlar" onclick="goto('reklamlar',this)">
+      <span class="nav-ico">📣</span>Reklamlar
+    </div>
     <div class="nav-item" id="nav-butce" onclick="goto('butce',this)">
       <span class="nav-ico">💸</span>Harcamalar
     </div>
@@ -364,24 +393,8 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
     <div class="nav-item" id="nav-puantaj" onclick="goto('puantaj',this)">
       <span class="nav-ico">📅</span>Puantaj
     </div>
-    <div class="nav-section">Sistem</div>
-    <div class="nav-item" id="nav-log" onclick="goto('log',this)">
-      <span class="nav-ico">🔐</span>İşlem Geçmişi
-    </div>
-    <div class="nav-item" id="nav-urunler" onclick="goto('urunler',this)">
-      <span class="nav-ico">🏷️</span>Ürün Listesi
-    </div>
-    <div class="nav-item" id="nav-pazarlar" onclick="goto('pazarlar',this)">
-      <span class="nav-ico">🛒</span>Pazar Yerleri
-    </div>
-    <div class="nav-item" onclick="exportData()">
-      <span class="nav-ico">💾</span>Yedek Al
-    </div>
-    <div class="nav-item" onclick="document.getElementById('importFile').click()">
-      <span class="nav-ico">📤</span>Yedek Yükle
-    </div>
-    <div class="nav-item" id="nav-linkler" onclick="goto('linkler',this)">
-      <span class="nav-ico">🔗</span>Link Ayarları
+    <div class="nav-item" id="nav-ayarlar" onclick="goto('ayarlar',this)">
+      <span class="nav-ico">⚙️</span>Ayarlar
     </div>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
   </nav>
@@ -460,6 +473,59 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
       </div>
     </div>
 
+    <!-- ══ AYARLAR ══ -->
+    <div class="page" id="page-ayarlar">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+        <!-- Ürün Listesi -->
+        <div style="background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius-xl);padding:24px">
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px">🏷️ Ürün Listesi</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:16px">Sipariş formundaki ürünleri yönetin.</div>
+          <div id="ay-prod-list" style="margin-bottom:16px;max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
+          <div style="display:flex;gap:8px">
+            <input class="f-input" id="ay-prod-input" placeholder="Yeni ürün adı..." style="flex:1" onkeydown="if(event.key==='Enter')ayAddProduct()">
+            <button class="btn primary" onclick="ayAddProduct()">+ Ekle</button>
+          </div>
+        </div>
+
+        <!-- Pazar Yerleri -->
+        <div style="background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius-xl);padding:24px">
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px">🛒 Pazar Yerleri</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:16px">Sipariş formundaki pazar yerlerini yönetin.</div>
+          <div id="ay-mkt-list" style="margin-bottom:16px;max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input class="f-input" id="ay-mkt-name" placeholder="Pazar yeri adı..." style="flex:1" onkeydown="if(event.key==='Enter')ayAddMarket()">
+            <input type="color" id="ay-mkt-color" value="#607d8b" style="width:38px;height:36px;border:.5px solid var(--border2);border-radius:var(--radius);cursor:pointer;padding:2px">
+            <button class="btn primary" onclick="ayAddMarket()">+ Ekle</button>
+          </div>
+        </div>
+
+        <!-- Link Ayarları -->
+        <div style="background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius-xl);padding:24px">
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px">🔗 Platform Linkleri</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:16px">Dashboard hızlı erişim linklerini düzenleyin.</div>
+          <div id="ay-link-list" style="display:flex;flex-direction:column;gap:10px"></div>
+        </div>
+
+        <!-- Yedek -->
+        <div style="background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius-xl);padding:24px">
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px">💾 Veri Yönetimi</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:20px">Verilerinizi yedekleyin veya geri yükleyin.</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <button class="btn" onclick="exportData()" style="justify-content:flex-start;gap:10px;padding:12px 16px">
+              <span style="font-size:18px">💾</span>
+              <div style="text-align:left"><div style="font-weight:600;font-size:13px">Yedek Al</div><div style="font-size:11px;color:var(--text3)">Tüm verileri JSON olarak indir</div></div>
+            </button>
+            <button class="btn" onclick="document.getElementById('importFile').click()" style="justify-content:flex-start;gap:10px;padding:12px 16px">
+              <span style="font-size:18px">📤</span>
+              <div style="text-align:left"><div style="font-weight:600;font-size:13px">Yedek Yükle</div><div style="font-size:11px;color:var(--text3)">JSON dosyasından verileri geri yükle</div></div>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     <!-- ══ NOT & GÖREVLER ══ -->
     <div class="page" id="page-notlar">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
@@ -505,6 +571,99 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
         </div>
 
       </div>
+    </div>
+
+    <!-- ══ REKLAMLAR ══ -->
+    <div class="page" id="page-reklamlar">
+
+      <!-- Grafikler -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px">
+        <div class="chart-card">
+          <div class="chart-title">Platform Dağılımı</div>
+          <div class="chart-sub">Harcamaya göre</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="rk-chart-plat"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Aylık Harcama Trendi</div>
+          <div class="chart-sub">Son 6 ay</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="rk-chart-trend"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Kampanya Bazlı Harcama</div>
+          <div class="chart-sub">En yüksek 6 kampanya</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="rk-chart-kampanya"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Yeni reklam formu -->
+      <div style="background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">+ Yeni Reklam Kaydı</div>
+        <div style="display:grid;grid-template-columns:140px 1fr 130px 130px 120px auto;gap:10px;align-items:end">
+          <div>
+            <label class="f-label">Platform</label>
+            <select class="f-select" id="rk-platform" style="font-size:13px;padding:7px 10px">
+              <option value="Trendyol">Trendyol</option>
+              <option value="Etsy">Etsy</option>
+              <option value="Meta">Meta</option>
+              <option value="Pinterest">Pinterest</option>
+              <option value="TikTok">TikTok</option>
+              <option value="Influencer">Influencer</option>
+              <option value="Diğer">Diğer</option>
+            </select>
+          </div>
+          <div>
+            <label class="f-label">Reklam Adı / Başlık</label>
+            <input class="f-input" id="rk-ad" placeholder="Kampanya adı..." style="font-size:13px;padding:7px 10px" onkeydown="if(event.key==='Enter')addReklam()">
+          </div>
+          <div>
+            <label class="f-label">Başlangıç</label>
+            <input class="f-input" id="rk-baslangic" type="date" style="font-size:13px;padding:7px 10px">
+          </div>
+          <div>
+            <label class="f-label">Bitiş</label>
+            <input class="f-input" id="rk-bitis" type="date" style="font-size:13px;padding:7px 10px">
+          </div>
+          <div>
+            <label class="f-label">Harcama (₺)</label>
+            <input class="f-input" id="rk-tutar" type="number" step="0.01" min="0" placeholder="0.00" style="font-size:13px;padding:7px 10px" onkeydown="if(event.key==='Enter')addReklam()">
+          </div>
+          <button class="btn primary" onclick="addReklam()" style="height:36px;white-space:nowrap">+ Ekle</button>
+        </div>
+      </div>
+
+      <!-- Filtreler -->
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <input type="month" id="rk-filtre-ay" style="padding:5px 10px;border:.5px solid var(--border2);border-radius:20px;font-size:12px;font-family:var(--font);outline:none;color:var(--text)" onchange="renderReklamlar()">
+        <div class="pill active" onclick="setRkPlatFilter('all',this)">Tümü</div>
+        <div class="pill rk-pill" onclick="setRkPlatFilter('Trendyol',this)" data-color="#f27a1a">Trendyol</div>
+        <div class="pill rk-pill" onclick="setRkPlatFilter('Etsy',this)" data-color="#f1641e">Etsy</div>
+        <div class="pill rk-pill" onclick="setRkPlatFilter('Meta',this)" data-color="#0866ff">Meta</div>
+        <div class="pill rk-pill" onclick="setRkPlatFilter('Pinterest',this)" data-color="#e60023">Pinterest</div>
+        <div class="pill rk-pill" onclick="setRkPlatFilter('TikTok',this)" data-color="#555">TikTok</div>
+        <div class="pill rk-pill" onclick="setRkPlatFilter('Influencer',this)" data-color="#7c3aed">Influencer</div>
+        <div class="pill" onclick="document.getElementById('rk-filtre-ay').value='';renderReklamlar()">Tümünü Göster</div>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn" onclick="exportReklamlar()">📥 CSV İndir</button>
+          <button class="btn" onclick="raporReklamlar()" style="color:#7c3aed;border-color:rgba(124,58,237,.3)">📋 Ay Raporu</button>
+        </div>
+      </div>
+
+      <!-- Liste -->
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:110px">Platform</th>
+            <th>Reklam Adı</th>
+            <th style="width:95px">Başlangıç</th>
+            <th style="width:95px">Bitiş</th>
+            <th style="width:95px">Süre</th>
+            <th style="width:110px">Harcama</th>
+            <th style="width:50px">Sil</th>
+          </tr></thead>
+          <tbody id="rk-tbody"></tbody>
+        </table>
+      </div>
+
     </div>
 
     <!-- ══ HARCAMALAR ══ -->
@@ -1213,7 +1372,7 @@ function saveMarkets(){
 // ════════════════════════════════════════
 //  NAVIGATION
 // ════════════════════════════════════════
-const pageTitles={dashboard:'Dashboard',notlar:'Not & Görevler',linkler:'Link Ayarları',yeni:'Yeni Sipariş',liste:'Tüm Siparişler',uretim:'Üretim Takibi',kargo:'Kargo Takibi',rapor:'Raporlar',urunler:'Ürün Listesi',pazarlar:'Pazar Yerleri',sorunlu:'Sorunlu Siparişler',desi:'Desi Kontrol',log:'İşlem Geçmişi',puantaj:'Puantaj',fiyat:'Fiyat Listesi',butce:'Harcamalar'};
+const pageTitles={dashboard:'Dashboard',notlar:'Not & Görevler',linkler:'Link Ayarları',reklamlar:'Reklamlar',ayarlar:'Ayarlar',yeni:'Yeni Sipariş',liste:'Tüm Siparişler',uretim:'Üretim Takibi',kargo:'Kargo Takibi',rapor:'Raporlar',urunler:'Ürün Listesi',pazarlar:'Pazar Yerleri',sorunlu:'Sorunlu Siparişler',desi:'Desi Kontrol',log:'İşlem Geçmişi',puantaj:'Puantaj',fiyat:'Fiyat Listesi',butce:'Harcamalar'};
 
 function goto(page,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1227,6 +1386,8 @@ function goto(page,el){
   if(page!=='puantaj') puanUnlocked=false;
   if(page!=='log') logUnlocked=false;
   closeMktDropdown();closeDropdown();
+  if(page==='ayarlar'){renderAyarlar();}
+  if(page==='reklamlar'){renderReklamlar();}
   if(page==='dashboard'){setTimeout(renderDashboard,100);}
   if(page==='linkler'){renderLinkSettings();}
   if(page==='dashboard'){setTimeout(renderDashboardLinks,200);}
@@ -3634,6 +3795,340 @@ function updateLink(idx,val){
 }
 
 // ════════════════════════════════════════
+//  REKLAMLAR
+// ════════════════════════════════════════
+const RK_KEY='reklamlar_v1';
+let reklamlarData=[];
+let rkPlatFilter='all';
+let rkCharts={};
+
+const RK_COLORS={Trendyol:'#f27a1a',Etsy:'#f1641e',Meta:'#0866ff',Pinterest:'#e60023',TikTok:'#010101',Influencer:'#7c3aed',Diğer:'#607d8b'};
+
+function loadReklamlar(){
+  try{reklamlarData=JSON.parse(localStorage.getItem(RK_KEY))||[];}catch{reklamlarData=[];}
+}
+function saveReklamlar(){localStorage.setItem(RK_KEY,JSON.stringify(reklamlarData));}
+
+function addReklam(){
+  const platform=document.getElementById('rk-platform').value;
+  const ad=document.getElementById('rk-ad').value.trim();
+  const baslangic=document.getElementById('rk-baslangic').value;
+  const bitis=document.getElementById('rk-bitis').value;
+  const tutar=parseFloat(document.getElementById('rk-tutar').value)||0;
+  if(!ad){toast('Reklam adı giriniz.','error');return;}
+  if(!baslangic){toast('Başlangıç tarihi giriniz.','error');return;}
+  reklamlarData.unshift({id:'rk_'+Date.now(),platform,ad,baslangic,bitis,tutar,ts:new Date().toISOString()});
+  saveReklamlar();
+  document.getElementById('rk-ad').value='';
+  document.getElementById('rk-tutar').value='';
+  renderReklamlar();
+  toast('Reklam kaydedildi.','success');
+}
+
+function removeReklam(id){
+  reklamlarData=reklamlarData.filter(r=>r.id!==id);
+  saveReklamlar();renderReklamlar();
+}
+
+function setRkPlatFilter(f,el){
+  rkPlatFilter=f;
+  document.querySelectorAll('#page-reklamlar .rk-pill').forEach(p=>{
+    p.classList.remove('active');
+    const c=p.getAttribute('data-color');
+    p.style.cssText='border-color:'+c+';color:'+c;
+  });
+  el.classList.add('active');
+  el.style.cssText=''; // CSS .active kuralına bırak
+  renderReklamlar();
+}
+
+function renderReklamlar(){
+  // Pill renklerini başlat
+  document.querySelectorAll('#page-reklamlar .rk-pill').forEach(p=>{
+    if(!p.classList.contains('active')){
+      const c=p.getAttribute('data-color');
+      p.style.cssText='border-color:'+c+';color:'+c;
+    }
+  });
+  const ay=document.getElementById('rk-filtre-ay')?.value;
+  const now=new Date();
+  const ayPrefix=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  // Filtreleme
+  let filtered=reklamlarData;
+  if(ay) filtered=filtered.filter(r=>r.baslangic&&r.baslangic.startsWith(ay));
+  if(rkPlatFilter!=='all') filtered=filtered.filter(r=>r.platform===rkPlatFilter);
+
+  // Grafikler
+  setTimeout(renderReklamCharts, 80);
+
+  const tbody=document.getElementById('rk-tbody');
+  if(!filtered.length){
+    tbody.innerHTML='<tr><td colspan="7" class="no-data">Reklam kaydı yok.</td></tr>';
+    return;
+  }
+  const color=p=>RK_COLORS[p]||'#607d8b';
+  tbody.innerHTML=filtered.map(r=>{
+    // Süre hesapla
+    let sure='—';
+    if(r.baslangic&&r.bitis){
+      const diff=Math.round((new Date(r.bitis)-new Date(r.baslangic))/(1000*60*60*24));
+      if(diff>=0) sure=diff+' gün';
+    }
+    return `<tr>
+      <td><span style="display:inline-block;padding:3px 10px;border-radius:5px;font-size:11px;font-weight:700;background:${color(r.platform)}18;color:${color(r.platform)};border:.5px solid ${color(r.platform)}55">${escHtml(r.platform)}</span></td>
+      <td style="font-weight:500">${escHtml(r.ad)}</td>
+      <td class="muted">${fmtDate(r.baslangic)}</td>
+      <td class="muted">${r.bitis?fmtDate(r.bitis):'—'}</td>
+      <td class="muted">${sure}</td>
+      <td style="font-weight:600;color:var(--accent)">₺${Number(r.tutar).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      <td style="text-align:center"><button onclick="removeReklam('${r.id}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0">×</button></td>
+    </tr>`;
+  }).join('');
+
+  // Grafikler
+  setTimeout(renderReklamCharts, 80);
+}
+
+function renderReklamCharts(){
+  const lc='#6b6a65', gc='rgba(0,0,0,.05)';
+  const ay=document.getElementById('rk-filtre-ay')?.value;
+  const now=new Date();
+  const ayPrefix=ay||`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const chartData=ay?reklamlarData.filter(r=>r.baslangic&&r.baslangic.startsWith(ay)):reklamlarData;
+
+  // 1. Platform Dağılımı (doughnut)
+  const platlar=['Trendyol','Etsy','Meta','Pinterest','TikTok','Influencer','Diğer'];
+  const platTutarlar=platlar.map(p=>chartData.filter(r=>r.platform===p).reduce((s,r)=>s+r.tutar,0));
+  const platColors=['#f27a1acc','#f1641ecc','#0866ffcc','#e60023cc','#010101cc','#7c3aedcc','#607d8bcc'];
+  if(rkCharts.plat) rkCharts.plat.destroy();
+  const cPlat=document.getElementById('rk-chart-plat');
+  if(cPlat) rkCharts.plat=new Chart(cPlat,{
+    type:'doughnut',
+    data:{labels:platlar,datasets:[{data:platTutarlar,backgroundColor:platColors,borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:lc,font:{size:10},boxWidth:10,padding:8}}}}
+  });
+
+  // 2. Aylık Trend (son 6 ay)
+  const months=[],md=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const prefix=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    months.push(d.toLocaleDateString('tr-TR',{month:'short',year:'2-digit'}));
+    md.push(reklamlarData.filter(r=>r.baslangic&&r.baslangic.startsWith(prefix)).reduce((s,r)=>s+r.tutar,0));
+  }
+  if(rkCharts.trend) rkCharts.trend.destroy();
+  const cTrend=document.getElementById('rk-chart-trend');
+  if(cTrend) rkCharts.trend=new Chart(cTrend,{
+    type:'bar',
+    data:{labels:months,datasets:[{data:md,backgroundColor:'rgba(212,85,15,.7)',borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:gc},ticks:{color:lc,font:{size:10}}},y:{grid:{color:gc},ticks:{color:lc,font:{size:10},callback:v=>'₺'+v.toLocaleString('tr-TR')}}}}
+  });
+
+  // 3. Kampanya bazlı (top 6)
+  const top=[...chartData].sort((a,b)=>b.tutar-a.tutar).slice(0,6);
+  if(rkCharts.kampanya) rkCharts.kampanya.destroy();
+  const cKamp=document.getElementById('rk-chart-kampanya');
+  if(cKamp) rkCharts.kampanya=new Chart(cKamp,{
+    type:'bar',
+    data:{
+      labels:top.map(r=>r.ad.length>16?r.ad.slice(0,16)+'…':r.ad),
+      datasets:[{data:top.map(r=>r.tutar),backgroundColor:top.map(r=>RK_COLORS[r.platform]||'#607d8b'),borderRadius:4}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:gc},ticks:{color:lc,font:{size:10},callback:v=>'₺'+v.toLocaleString('tr-TR')}},y:{grid:{color:gc},ticks:{color:lc,font:{size:10}}}}}
+  });
+}
+
+function exportReklamlar(){
+  const ay=document.getElementById('rk-filtre-ay')?.value;
+  let rows=reklamlarData;
+  if(ay) rows=rows.filter(r=>r.baslangic&&r.baslangic.startsWith(ay));
+  if(rkPlatFilter!=='all') rows=rows.filter(r=>r.platform===rkPlatFilter);
+  const headers=['Platform','Reklam Adı','Başlangıç','Bitiş','Harcama (₺)'];
+  const csv=[headers,...rows.map(r=>[r.platform,r.ad,r.baslangic||'',r.bitis||'',r.tutar])]
+    .map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='reklamlar_'+todayStr()+'.csv';a.click();
+  toast('İndirildi.','success');
+}
+
+function raporReklamlar(){
+  const ay=document.getElementById('rk-filtre-ay')?.value;
+  const now=new Date();
+  const ayPrefix=ay||`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const ayStr=new Date(ayPrefix+'-01').toLocaleDateString('tr-TR',{month:'long',year:'numeric'});
+  const ayData=reklamlarData.filter(r=>r.baslangic&&r.baslangic.startsWith(ayPrefix));
+  if(!ayData.length){toast('Bu ayda reklam kaydı yok.','error');return;}
+
+  const toplam=ayData.reduce((s,r)=>s+r.tutar,0);
+  const platOzet={};
+  ayData.forEach(r=>{platOzet[r.platform]=(platOzet[r.platform]||0)+r.tutar;});
+
+  const rows=ayData.map(r=>`
+    <tr>
+      <td style="padding:7px 12px"><span style="background:${RK_COLORS[r.platform]||'#607d8b'}18;color:${RK_COLORS[r.platform]||'#607d8b'};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${escHtml(r.platform)}</span></td>
+      <td style="padding:7px 12px;font-weight:500">${escHtml(r.ad)}</td>
+      <td style="padding:7px 12px;color:#555">${r.baslangic||''}</td>
+      <td style="padding:7px 12px;color:#555">${r.bitis||'—'}</td>
+      <td style="padding:7px 12px;font-weight:700;text-align:right">₺${Number(r.tutar).toLocaleString('tr-TR',{minimumFractionDigits:2})}</td>
+    </tr>`).join('');
+
+  const platRows=Object.entries(platOzet).sort((a,b)=>b[1]-a[1]).map(([p,t])=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:.5px solid #eee">
+      <span style="font-weight:600;color:${RK_COLORS[p]||'#607d8b'}">${p}</span>
+      <span style="font-weight:700">₺${Number(t).toLocaleString('tr-TR',{minimumFractionDigits:2})}</span>
+    </div>`).join('');
+
+  const html=`<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>Reklam Raporu - ${ayStr}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',sans-serif;color:#111;padding:24px;font-size:13px}
+h1{font-size:20px;font-weight:700;margin-bottom:4px}
+.sub{color:#777;font-size:12px;margin-bottom:24px}
+.ozet{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px}
+.kart{background:#f8f7f4;border-radius:10px;padding:14px 16px}
+.kart-label{font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:4px}
+.kart-val{font-size:22px;font-weight:700}
+table{width:100%;border-collapse:collapse;margin-bottom:24px}
+thead th{background:#111;color:#fff;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase}
+tbody tr:nth-child(even){background:#f8f7f4}
+td{border-bottom:1px solid #eee}
+.plat-ozet{background:#f8f7f4;border-radius:10px;padding:16px;max-width:340px}
+.plat-title{font-size:12px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:10px}
+@media print{@page{margin:.8cm;size:A4}}
+</style></head><body>
+<h1>📣 Reklam Raporu</h1>
+<div class="sub">${ayStr} · ${ayData.length} kampanya · Toplam ₺${Number(toplam).toLocaleString('tr-TR',{minimumFractionDigits:2})}</div>
+<div class="ozet">
+  <div class="kart"><div class="kart-label">Toplam Harcama</div><div class="kart-val">₺${Number(toplam).toLocaleString('tr-TR',{maximumFractionDigits:0})}</div></div>
+  <div class="kart"><div class="kart-label">Kampanya Sayısı</div><div class="kart-val">${ayData.length}</div></div>
+  ${Object.entries(platOzet).map(([p,t])=>`<div class="kart"><div class="kart-label">${p}</div><div class="kart-val" style="color:${RK_COLORS[p]||'#607d8b'}">₺${Number(t).toLocaleString('tr-TR',{maximumFractionDigits:0})}</div></div>`).join('')}
+</div>
+<table>
+  <thead><tr><th>Platform</th><th>Reklam Adı</th><th>Başlangıç</th><th>Bitiş</th><th style="text-align:right">Harcama</th></tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<div class="plat-ozet"><div class="plat-title">Platform Özeti</div>${platRows}</div>
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`;
+  const w=window.open('','_blank','width=860,height=700');
+  w.document.write(html);w.document.close();
+}
+
+// ════════════════════════════════════════
+//  AYARLAR SAYFASI
+// ════════════════════════════════════════
+function renderAyarlar(){
+  // Ürün listesi
+  const prodCont=document.getElementById('ay-prod-list');
+  if(prodCont){
+    prodCont.innerHTML=!products.length
+      ?'<div style="font-size:12px;color:var(--text3)">Henüz ürün eklenmemiş.</div>'
+      :products.map((p,i)=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:var(--surface2);border-radius:var(--radius)">
+          <span style="font-size:13px;font-weight:500">${escHtml(p)}</span>
+          <button onclick="ayRemoveProduct(${i})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0">×</button>
+        </div>`).join('');
+  }
+  // Pazar yerleri
+  const mktCont=document.getElementById('ay-mkt-list');
+  if(mktCont){
+    mktCont.innerHTML=!markets.length
+      ?'<div style="font-size:12px;color:var(--text3)">Henüz pazar yeri yok.</div>'
+      :markets.map((m,i)=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--surface2);border-radius:var(--radius)">
+          <span style="width:14px;height:14px;border-radius:50%;background:${m.color};flex-shrink:0;display:inline-block"></span>
+          <span style="font-size:13px;font-weight:500;flex:1">${escHtml(m.label)}</span>
+          <input type="color" value="${m.color}" onchange="ayUpdateMarketColor(${i},this.value)" style="width:26px;height:26px;border:.5px solid var(--border2);border-radius:4px;cursor:pointer;padding:1px">
+          <button onclick="ayRemoveMarket(${i})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0">×</button>
+        </div>`).join('');
+  }
+  // Linkler
+  const linkCont=document.getElementById('ay-link-list');
+  if(linkCont){
+    linkCont.innerHTML=socialLinks.map(function(l,i){
+      return '<div style="display:flex;align-items:center;gap:10px">'
+        +getLinkIconHtml(l,22)
+        +'<span style="font-size:13px;font-weight:500;width:100px;color:var(--text)">'+escHtml(l.label)+'</span>'
+        +'<input class="f-input" placeholder="https://..." value="'+escHtml(l.url||'')+'" '
+        +'oninput="updateLink('+i+',this.value)" '
+        +'style="flex:1;font-size:12px;padding:6px 10px">'
+        +'</div>';
+    }).join('');
+  }
+}
+
+function ayAddProduct(){
+  const inp=document.getElementById('ay-prod-input');
+  const val=inp.value.trim();if(!val)return;
+  if(products.includes(val)){toast('Bu ürün zaten var.','error');return;}
+  products.push(val);products.sort((a,b)=>a.localeCompare(b,'tr'));
+  saveProducts();renderAyarlar();inp.value='';
+  toast('Ürün eklendi.','success');
+}
+function ayRemoveProduct(i){
+  if(!confirm(`"${products[i]}" silinsin mi?`))return;
+  products.splice(i,1);saveProducts();renderAyarlar();
+}
+function ayAddMarket(){
+  const name=document.getElementById('ay-mkt-name').value.trim();
+  const color=document.getElementById('ay-mkt-color').value||'#607d8b';
+  if(!name){toast('İsim giriniz.','error');return;}
+  const id='mkt_'+Date.now();
+  markets.push({id,label:name,color});
+  saveMarkets();renderAyarlar();
+  document.getElementById('ay-mkt-name').value='';
+  toast('Pazar yeri eklendi.','success');
+}
+function ayRemoveMarket(i){
+  if(!confirm(`"${markets[i].label}" silinsin mi?`))return;
+  markets.splice(i,1);saveMarkets();renderAyarlar();
+}
+function ayUpdateMarketColor(i,color){
+  markets[i].color=color;saveMarkets();
+}
+
+// ════════════════════════════════════════
+//  GİRİŞ SİSTEMİ
+// ════════════════════════════════════════
+const APP_PWD_KEY='app_session_v1';
+const APP_REMEMBER_KEY='app_remember_v1';
+const CORRECT_PWD='pastelya2024';  // ← Şifreyi buradan değiştirin
+
+function loginCheck(){
+  const val=document.getElementById('login-pwd').value;
+  const remember=document.getElementById('login-remember').checked;
+  if(val===CORRECT_PWD){
+    sessionStorage.setItem(APP_PWD_KEY,'ok');
+    if(remember){
+      localStorage.setItem(APP_REMEMBER_KEY,'ok');
+    }
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('login-pwd').value='';
+    document.getElementById('login-err').style.display='none';
+  } else {
+    document.getElementById('login-err').style.display='';
+    document.getElementById('login-pwd').value='';
+    document.getElementById('login-pwd').focus();
+  }
+}
+
+// Sayfa açılışında kontrol
+(function(){
+  const session=sessionStorage.getItem(APP_PWD_KEY)==='ok';
+  const remembered=localStorage.getItem(APP_REMEMBER_KEY)==='ok';
+  if(session||remembered){
+    document.getElementById('login-screen').style.display='none';
+  } else {
+    setTimeout(function(){
+      var inp=document.getElementById('login-pwd');
+      if(inp) inp.focus();
+    },100);
+  }
+})();
+
+// ════════════════════════════════════════
 //  INIT
 // ════════════════════════════════════════
 loadData();
@@ -3641,6 +4136,7 @@ loadHarcamalar();
 loadNotlar();
 loadGorevler();
 loadLinks();
+loadReklamlar();
 // Firebase hazır olduğunda senkronize et
 document.addEventListener('firebase-ready', ()=>syncFromFirebase());
 if(window.firebaseReady) syncFromFirebase();
