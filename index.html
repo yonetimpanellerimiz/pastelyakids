@@ -377,6 +377,9 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
       <span class="nav-ico">📐</span>Desi Kontrol
       <span class="nav-badge" id="nb-desi" style="background:#0e7490">0</span>
     </div>
+    <div class="nav-item" id="nav-uretim-takip" onclick="goto('uretim-takip',this)">
+      <span class="nav-ico">🏭</span>Üretim
+    </div>
     <div class="nav-section">Analiz</div>
     <div class="nav-item" id="nav-rapor" onclick="goto('rapor',this)">
       <span class="nav-ico">📊</span>Raporlar
@@ -471,6 +474,115 @@ kbd{display:inline-block;background:var(--surface2);border:.5px solid var(--bord
           <div style="font-size:11px;color:var(--text3)">Linki boş bırakırsanız o ikon gösterilmez.</div>
         </div>
       </div>
+    </div>
+
+    <!-- ══ ÜRETİM TAKİP ══ -->
+    <div class="page" id="page-uretim-takip">
+
+      <!-- Tab switcher -->
+      <div style="display:flex;gap:0;margin-bottom:20px;background:var(--surface2);border-radius:var(--radius-lg);padding:4px;width:fit-content;border:.5px solid var(--border)">
+        <button id="ut-tab-kayit" onclick="utSetTab('kayit')" style="padding:7px 20px;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;font-family:var(--font);cursor:pointer;background:var(--accent);color:#fff;transition:all .15s">📋 Kayıtlar</button>
+        <button id="ut-tab-istat" onclick="utSetTab('istat')" style="padding:7px 20px;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;font-family:var(--font);cursor:pointer;background:transparent;color:var(--text2);transition:all .15s">📊 İstatistikler</button>
+      </div>
+
+      <!-- KAYITLAR sekmesi -->
+      <div id="ut-panel-kayit">
+        <!-- Yeni kayıt formu -->
+        <div style="background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">+ Üretim Kaydı Ekle</div>
+          <div style="display:grid;grid-template-columns:120px 160px 180px 80px 1fr auto;gap:10px;align-items:end">
+            <div>
+              <label class="f-label">Tarih</label>
+              <input class="f-input" id="ut-tarih" type="date" style="font-size:13px;padding:7px 10px">
+            </div>
+            <div>
+              <label class="f-label">Personel</label>
+              <select class="f-select" id="ut-personel" style="font-size:13px;padding:7px 10px">
+                <option value="">Seçiniz...</option>
+              </select>
+            </div>
+            <div>
+              <label class="f-label">Ürün</label>
+              <select class="f-select" id="ut-urun" style="font-size:13px;padding:7px 10px">
+                <option value="">Seçiniz...</option>
+              </select>
+            </div>
+            <div>
+              <label class="f-label">Adet</label>
+              <input class="f-input" id="ut-adet" type="number" min="1" placeholder="0" style="font-size:13px;padding:7px 10px" onkeydown="if(event.key==='Enter')addUretim()">
+            </div>
+            <div>
+              <label class="f-label">Not (opsiyonel)</label>
+              <input class="f-input" id="ut-not" placeholder="Açıklama..." style="font-size:13px;padding:7px 10px" onkeydown="if(event.key==='Enter')addUretim()">
+            </div>
+            <button class="btn primary" onclick="addUretim()" style="height:36px;white-space:nowrap">+ Ekle</button>
+          </div>
+        </div>
+
+        <!-- Filtre + Personel yönetimi -->
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+          <input type="month" id="ut-filtre-ay" style="padding:5px 10px;border:.5px solid var(--border2);border-radius:20px;font-size:12px;font-family:var(--font);outline:none;color:var(--text)" onchange="renderUretim()">
+          <div class="pill" onclick="document.getElementById('ut-filtre-ay').value='';renderUretim()">Tümünü Göster</div>
+          <div style="margin-left:auto;display:flex;gap:8px">
+            <button class="btn" onclick="openUtPersonelModal()" style="color:#7c3aed;border-color:rgba(124,58,237,.3)">👤 Personel Yönet</button>
+            <button class="btn" onclick="exportUretim()">📥 CSV İndir</button>
+          </div>
+        </div>
+
+        <!-- Liste -->
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:90px">Tarih</th>
+              <th style="width:130px">Personel</th>
+              <th>Ürün</th>
+              <th style="width:70px">Adet</th>
+              <th>Not</th>
+              <th style="width:50px">Sil</th>
+            </tr></thead>
+            <tbody id="ut-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- İSTATİSTİKLER sekmesi -->
+      <div id="ut-panel-istat" style="display:none">
+        <!-- Ay filtresi -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <input type="month" id="ut-istat-ay" style="padding:5px 10px;border:.5px solid var(--border2);border-radius:20px;font-size:12px;font-family:var(--font);outline:none;color:var(--text)" onchange="renderUretimChartsByFilter()">
+          <div class="pill" onclick="document.getElementById('ut-istat-ay').value='';renderUretimChartsByFilter()">Bu Ay</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div class="chart-card">
+            <div class="chart-title">Personel Bazlı Üretim</div>
+            <div class="chart-sub" id="ut-chart-sub1">Bu ay</div>
+            <div class="chart-wrap" style="height:240px"><canvas id="ut-chart-personel"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Ürün Bazlı Toplam</div>
+            <div class="chart-sub" id="ut-chart-sub2">Bu ay</div>
+            <div class="chart-wrap" style="height:240px"><canvas id="ut-chart-urun"></canvas></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div class="chart-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+              <div>
+                <div class="chart-title">⭐ Personel Günlük Puan Dalgalanması</div>
+                <div class="chart-sub" id="ut-chart-sub4">Her gün kazanılan puan</div>
+              </div>
+              <button onclick="raporPuan()" class="btn" style="color:#7c3aed;border-color:rgba(124,58,237,.3);white-space:nowrap;font-size:12px">📋 Rapor Al</button>
+            </div>
+            <div class="chart-wrap" style="height:240px"><canvas id="ut-chart-puan"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Günlük Üretim Trendi</div>
+            <div class="chart-sub" id="ut-chart-sub3">Bu ay — her gün toplam adet</div>
+            <div class="chart-wrap" style="height:240px"><canvas id="ut-chart-gunluk"></canvas></div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- ══ AYARLAR ══ -->
@@ -1372,7 +1484,7 @@ function saveMarkets(){
 // ════════════════════════════════════════
 //  NAVIGATION
 // ════════════════════════════════════════
-const pageTitles={dashboard:'Dashboard',notlar:'Not & Görevler',linkler:'Link Ayarları',reklamlar:'Reklamlar',ayarlar:'Ayarlar',yeni:'Yeni Sipariş',liste:'Tüm Siparişler',uretim:'Üretim Takibi',kargo:'Kargo Takibi',rapor:'Raporlar',urunler:'Ürün Listesi',pazarlar:'Pazar Yerleri',sorunlu:'Sorunlu Siparişler',desi:'Desi Kontrol',log:'İşlem Geçmişi',puantaj:'Puantaj',fiyat:'Fiyat Listesi',butce:'Harcamalar'};
+const pageTitles={dashboard:'Dashboard',notlar:'Not & Görevler',linkler:'Link Ayarları',reklamlar:'Reklamlar',ayarlar:'Ayarlar','uretim-takip':'Üretim Takip',yeni:'Yeni Sipariş',liste:'Tüm Siparişler',uretim:'Üretim Takibi',kargo:'Kargo Takibi',rapor:'Raporlar',urunler:'Ürün Listesi',pazarlar:'Pazar Yerleri',sorunlu:'Sorunlu Siparişler',desi:'Desi Kontrol',log:'İşlem Geçmişi',puantaj:'Puantaj',fiyat:'Fiyat Listesi',butce:'Harcamalar'};
 
 function goto(page,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1386,6 +1498,7 @@ function goto(page,el){
   if(page!=='puantaj') puanUnlocked=false;
   if(page!=='log') logUnlocked=false;
   closeMktDropdown();closeDropdown();
+  if(page==='uretim-takip'){renderUretim();}
   if(page==='ayarlar'){renderAyarlar();}
   if(page==='reklamlar'){renderReklamlar();}
   if(page==='dashboard'){setTimeout(renderDashboard,100);}
@@ -4017,18 +4130,376 @@ td{border-bottom:1px solid #eee}
 }
 
 // ════════════════════════════════════════
+//  ÜRETİM TAKİP
+// ════════════════════════════════════════
+const UT_KEY='uretim_takip_v1';
+let uretimData=[];
+let utCharts={};
+
+function loadUretim(){
+  try{uretimData=JSON.parse(localStorage.getItem(UT_KEY))||[];}catch{uretimData=[];}
+}
+function saveUretim(){localStorage.setItem(UT_KEY,JSON.stringify(uretimData));}
+
+function addUretim(){
+  const tarih=document.getElementById('ut-tarih').value;
+  const personel=document.getElementById('ut-personel').value;
+  const urun=document.getElementById('ut-urun').value;
+  const adet=parseInt(document.getElementById('ut-adet').value)||0;
+  const not=document.getElementById('ut-not').value.trim();
+  if(!tarih){toast('Tarih seçiniz.','error');return;}
+  if(!personel){toast('Personel seçiniz.','error');return;}
+  if(!urun){toast('Ürün seçiniz.','error');return;}
+  if(!adet){toast('Adet giriniz.','error');return;}
+  uretimData.unshift({id:'ut_'+Date.now(),tarih,personel,urun,adet,not});
+  saveUretim();
+  document.getElementById('ut-adet').value='';
+  document.getElementById('ut-not').value='';
+  renderUretim();
+  toast('Üretim kaydedildi.','success');
+}
+
+function removeUretim(id){
+  uretimData=uretimData.filter(u=>u.id!==id);
+  saveUretim();renderUretim();
+}
+
+function utFillSelects(){
+  // Personel select
+  const pSel=document.getElementById('ut-personel');
+  if(pSel){
+    const cur=pSel.value;
+    pSel.innerHTML='<option value="">Seçiniz...</option>'
+      +personelList.map(p=>`<option value="${escHtml(p.name)}"${cur===p.name?' selected':''}>${escHtml(p.name)}</option>`).join('');
+  }
+  // Ürün select
+  const uSel=document.getElementById('ut-urun');
+  if(uSel){
+    const cur=uSel.value;
+    uSel.innerHTML='<option value="">Seçiniz...</option>'
+      +products.map(p=>`<option value="${escHtml(p)}"${cur===p?' selected':''}>${escHtml(p)}</option>`).join('');
+  }
+}
+
+function renderUretim(){
+  utFillSelects();
+  // Tarih default
+  const tInp=document.getElementById('ut-tarih');
+  if(tInp&&!tInp.value) tInp.value=todayStr();
+
+  const ay=document.getElementById('ut-filtre-ay')?.value;
+  const now=new Date();
+  const ayPrefix=ay||`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  let filtered=uretimData;
+  if(ay) filtered=filtered.filter(u=>u.tarih&&u.tarih.startsWith(ay));
+
+  // Tablo
+  const tbody=document.getElementById('ut-tbody');
+  if(!filtered.length){
+    tbody.innerHTML='<tr><td colspan="6" class="no-data">Üretim kaydı yok.</td></tr>';
+  } else {
+    tbody.innerHTML=filtered.map(u=>`<tr>
+      <td class="muted">${fmtDate(u.tarih)}</td>
+      <td style="font-weight:500">${escHtml(u.personel)}</td>
+      <td>${escHtml(u.urun)}</td>
+      <td style="font-weight:700;text-align:center;color:var(--accent)">${u.adet}</td>
+      <td style="font-size:12px;color:var(--text2)">${escHtml(u.not||'—')}</td>
+      <td style="text-align:center"><button onclick="removeUretim('${u.id}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0">×</button></td>
+    </tr>`).join('');
+  }
+
+  // Grafikler sadece istatistikler sekmesinde render edilir
+}
+
+function renderUretimCharts(ayPrefix){
+  const lc='#6b6a65',gc='rgba(0,0,0,.05)';
+  const ayData=uretimData.filter(u=>u.tarih&&u.tarih.startsWith(ayPrefix));
+  const ayStr=new Date(ayPrefix+'-01').toLocaleDateString('tr-TR',{month:'long',year:'numeric'});
+
+  const sub1=document.getElementById('ut-chart-sub1');
+  const sub2=document.getElementById('ut-chart-sub2');
+  if(sub1) sub1.textContent=ayStr;
+  if(sub2) sub2.textContent=ayStr;
+
+  // 1. Personel bazlı
+  const personelToplam={};
+  ayData.forEach(u=>{personelToplam[u.personel]=(personelToplam[u.personel]||0)+u.adet;});
+  const pLabels=Object.keys(personelToplam);
+  const pData=pLabels.map(p=>personelToplam[p]);
+  const pColors=['#7c3aed','#d4550f','#2d7a3a','#0e7490','#1a5fb4','#8a5800'];
+
+  if(utCharts.personel) utCharts.personel.destroy();
+  const cp=document.getElementById('ut-chart-personel');
+  if(cp) utCharts.personel=new Chart(cp,{
+    type:'bar',
+    data:{labels:pLabels,datasets:[{data:pData,backgroundColor:pColors.slice(0,pLabels.length),borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:gc},ticks:{color:lc,font:{size:11}}},
+        y:{grid:{color:gc},ticks:{color:lc,font:{size:11},stepSize:1},
+           title:{display:true,text:'Adet',color:lc,font:{size:10}}}}}
+  });
+
+  // 3. Personel Günlük Puan Dalgalanması (line)
+  const sub4=document.getElementById('ut-chart-sub4');
+  if(sub4) sub4.textContent=ayStr+' · Her gün kazanılan puan';
+
+  const [y2,m2]=ayPrefix.split('-').map(Number);
+  const days2=new Date(y2,m2,0).getDate();
+  const dayLabels=Array.from({length:days2},(_,i)=>String(i+1));
+
+  // Personeller
+  const personeller=[...new Set(ayData.map(u=>u.personel))];
+  const lineColors=['#7c3aed','#d4550f','#2d7a3a','#0e7490','#1a5fb4','#e60023'];
+
+  const datasets=personeller.map((p,pi)=>({
+    label:p,
+    data:Array.from({length:days2},(_,i)=>{
+      const d=String(i+1).padStart(2,'0');
+      const dateStr=`${ayPrefix}-${d}`;
+      const kayitlar=ayData.filter(u=>u.tarih===dateStr&&u.personel===p);
+      return Math.round(kayitlar.reduce((s,u)=>s+(u.adet*getKatsayi(u.urun)),0)*100)/100;
+    }),
+    borderColor:lineColors[pi%lineColors.length],
+    backgroundColor:lineColors[pi%lineColors.length]+'22',
+    borderWidth:2.5,
+    pointRadius:4,
+    pointHoverRadius:6,
+    tension:0.3,
+    fill:false
+  }));
+
+  if(utCharts.puan) utCharts.puan.destroy();
+  const cpuan=document.getElementById('ut-chart-puan');
+  if(cpuan) utCharts.puan=new Chart(cpuan,{
+    type:'line',
+    data:{labels:dayLabels,datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{labels:{color:lc,font:{size:11},boxWidth:12,padding:10}},
+        tooltip:{callbacks:{
+          title:t=>`${t[0].label}. gün`,
+          label:t=>`${t.dataset.label}: ${t.raw} puan`
+        }}
+      },
+      scales:{
+        x:{grid:{color:gc},ticks:{color:lc,font:{size:9}}},
+        y:{grid:{color:gc},ticks:{color:lc,font:{size:10}},
+           title:{display:true,text:'Puan',color:lc,font:{size:10}},min:0}
+      }
+    }
+  });
+
+  // 4. Günlük trend
+  const sub3=document.getElementById('ut-chart-sub3');
+  if(sub3) sub3.textContent=ayStr+' — her gün toplam adet';
+
+  // O ayın kaç günü var
+  const [y,m]=ayPrefix.split('-').map(Number);
+  const daysInMonth=new Date(y,m,0).getDate();
+  const gunLabels=Array.from({length:daysInMonth},(_,i)=>String(i+1));
+  const gunData=Array.from({length:daysInMonth},(_,i)=>{
+    const d=String(i+1).padStart(2,'0');
+    const dateStr=`${ayPrefix}-${d}`;
+    return ayData.filter(u=>u.tarih===dateStr).reduce((s,u)=>s+u.adet,0);
+  });
+
+  if(utCharts.gunluk) utCharts.gunluk.destroy();
+  const cg=document.getElementById('ut-chart-gunluk');
+  if(cg) utCharts.gunluk=new Chart(cg,{
+    type:'bar',
+    data:{
+      labels:gunLabels,
+      datasets:[{
+        label:'Üretim',
+        data:gunData,
+        backgroundColor:gunData.map(v=>v>0?'rgba(45,122,58,.75)':'rgba(0,0,0,.05)'),
+        borderRadius:3
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{title:t=>`${t[0].label}. gün`,label:t=>`${t.raw} adet`}}},
+      scales:{
+        x:{grid:{color:gc},ticks:{color:lc,font:{size:9}}},
+        y:{grid:{color:gc},ticks:{color:lc,font:{size:10},stepSize:1},
+           title:{display:true,text:'Adet',color:lc,font:{size:10}},min:0}
+      }
+    }
+  });
+  const urunToplam={};
+  ayData.forEach(u=>{urunToplam[u.urun]=(urunToplam[u.urun]||0)+u.adet;});
+  const uLabels=Object.keys(urunToplam).sort((a,b)=>urunToplam[b]-urunToplam[a]).slice(0,8);
+  const uData=uLabels.map(u=>urunToplam[u]);
+
+  if(utCharts.urun) utCharts.urun.destroy();
+  const cu=document.getElementById('ut-chart-urun');
+  if(cu) utCharts.urun=new Chart(cu,{
+    type:'bar',
+    data:{labels:uLabels.map(l=>l.length>14?l.slice(0,14)+'…':l),
+      datasets:[{data:uData,backgroundColor:'rgba(26,95,180,.75)',borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:gc},ticks:{color:lc,font:{size:10}}},
+        y:{grid:{color:gc},ticks:{color:lc,font:{size:10}}}}}
+  });
+}
+
+function utSetTab(tab){
+  const isKayit=tab==='kayit';
+  document.getElementById('ut-panel-kayit').style.display=isKayit?'':'none';
+  document.getElementById('ut-panel-istat').style.display=isKayit?'none':'';
+  document.getElementById('ut-tab-kayit').style.cssText=isKayit
+    ?'padding:7px 20px;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;font-family:var(--font);cursor:pointer;background:var(--accent);color:#fff;transition:all .15s'
+    :'padding:7px 20px;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;font-family:var(--font);cursor:pointer;background:transparent;color:var(--text2);transition:all .15s';
+  document.getElementById('ut-tab-istat').style.cssText=!isKayit
+    ?'padding:7px 20px;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;font-family:var(--font);cursor:pointer;background:var(--accent);color:#fff;transition:all .15s'
+    :'padding:7px 20px;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;font-family:var(--font);cursor:pointer;background:transparent;color:var(--text2);transition:all .15s';
+  if(!isKayit) renderUretimChartsByFilter();
+}
+
+function renderUretimChartsByFilter(){
+  const now=new Date();
+  const ayEl=document.getElementById('ut-istat-ay');
+  const ayPrefix=ayEl?.value||`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  renderUretimCharts(ayPrefix);
+}
+
+function raporPuan(){
+  const now=new Date();
+  const ayEl=document.getElementById('ut-istat-ay');
+  const ayPrefix=ayEl?.value||`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const ayStr=new Date(ayPrefix+'-01').toLocaleDateString('tr-TR',{month:'long',year:'numeric'});
+  const [y,m]=ayPrefix.split('-').map(Number);
+  const daysInMonth=new Date(y,m,0).getDate();
+  const ayData=uretimData.filter(u=>u.tarih&&u.tarih.startsWith(ayPrefix));
+  if(!ayData.length){toast('Bu ayda üretim kaydı yok.','error');return;}
+
+  const personeller=[...new Set(ayData.map(u=>u.personel))].sort();
+  const lineColors=['#7c3aed','#d4550f','#2d7a3a','#0e7490','#1a5fb4','#e60023'];
+
+  // Personel bazlı günlük puan hesapla
+  const gunPuanlar={};
+  personeller.forEach(p=>{
+    gunPuanlar[p]=Array.from({length:daysInMonth},(_,i)=>{
+      const d=String(i+1).padStart(2,'0');
+      return Math.round(ayData.filter(u=>u.tarih===`${ayPrefix}-${d}`&&u.personel===p)
+        .reduce((s,u)=>s+(u.adet*getKatsayi(u.urun)),0)*100)/100;
+    });
+  });
+
+  // Personel toplam puanları
+  const toplamlar={};
+  personeller.forEach(p=>{toplamlar[p]=Math.round(gunPuanlar[p].reduce((s,v)=>s+v,0)*100)/100;});
+  const sirali=[...personeller].sort((a,b)=>toplamlar[b]-toplamlar[a]);
+
+  // Tablo satırları — her gün bir sütun (sadece üretim olan günler)
+  const aktifGunler=Array.from({length:daysInMonth},(_,i)=>i+1)
+    .filter(d=>personeller.some(p=>gunPuanlar[p][d-1]>0));
+
+  const thGunler=aktifGunler.map(d=>`<th style="padding:6px 8px;background:#111;color:#fff;font-size:10px;min-width:32px">${d}</th>`).join('');
+  const rows=sirali.map((p,pi)=>{
+    const renk=lineColors[personeller.indexOf(p)%lineColors.length];
+    const tdGunler=aktifGunler.map(d=>{
+      const v=gunPuanlar[p][d-1];
+      return `<td style="padding:6px 8px;text-align:center;font-size:11px;${v>0?'font-weight:600;color:'+renk:'color:#ccc'}">${v>0?v:'—'}</td>`;
+    }).join('');
+    return `<tr style="background:${pi%2?'#f8f7f4':'#fff'}">
+      <td style="padding:8px 12px;font-weight:700;color:${renk};white-space:nowrap">${p}</td>
+      ${tdGunler}
+      <td style="padding:8px 12px;text-align:right;font-weight:800;font-size:13px;color:${renk}">${toplamlar[p]}</td>
+    </tr>`;
+  }).join('');
+
+  // Özet kartları
+  const enYuksek=sirali[0];
+  const ozet=sirali.map((p,i)=>{
+    const renk=lineColors[personeller.indexOf(p)%lineColors.length];
+    const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+    return `<div style="background:#f8f7f4;border-radius:10px;padding:14px 16px;border-left:4px solid ${renk}">
+      <div style="font-size:12px;font-weight:700;color:${renk}">${medal} ${p}</div>
+      <div style="font-size:24px;font-weight:800;margin-top:4px">${toplamlar[p]}</div>
+      <div style="font-size:10px;color:#888">toplam puan</div>
+    </div>`;
+  }).join('');
+
+  const html=`<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8">
+<title>Puan Raporu — ${ayStr}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;color:#111;padding:20px;font-size:13px}
+h1{font-size:20px;font-weight:800;margin-bottom:2px}
+.sub{color:#777;font-size:12px;margin-bottom:20px}
+.ozet{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:24px}
+table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:12px}
+thead th{background:#111;color:#fff;padding:7px 8px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em}
+td{border-bottom:1px solid #eee}
+.footer{font-size:10px;color:#aaa;margin-top:16px;text-align:right}
+@media print{@page{margin:.8cm;size:A4 landscape}body{padding:0}}
+</style></head><body>
+<h1>⭐ Personel Puan Raporu</h1>
+<div class="sub">${ayStr} · ${personeller.length} personel · En yüksek: ${enYuksek} (${toplamlar[enYuksek]} puan)</div>
+<div class="ozet">${ozet}</div>
+<table>
+  <thead><tr>
+    <th style="padding:7px 12px;background:#111;color:#fff">Personel</th>
+    ${thGunler}
+    <th style="padding:7px 12px;background:#111;color:#fff;text-align:right">Toplam</th>
+  </tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<div style="font-size:10px;color:#aaa;margin-bottom:8px">* Puan = Üretim Adedi × Ürün Katsayısı &nbsp;|&nbsp; Sadece üretim olan günler gösterilmektedir.</div>
+<div class="footer">Pastelya Kids · ${new Date().toLocaleDateString('tr-TR')}</div>
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`;
+
+  const w=window.open('','_blank','width=1000,height=700');
+  w.document.write(html);w.document.close();
+}
+
+function openUtPersonelModal(){
+  renderPersonelListModal();
+  document.getElementById('personel-overlay').classList.add('open');
+}
+
+function exportUretim(){
+  const ay=document.getElementById('ut-filtre-ay')?.value;
+  let rows=uretimData;
+  if(ay) rows=rows.filter(u=>u.tarih&&u.tarih.startsWith(ay));
+  const headers=['Tarih','Personel','Ürün','Adet','Not'];
+  const csv=[headers,...rows.map(u=>[u.tarih,u.personel,u.urun,u.adet,u.not||''])]
+    .map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='uretim_'+todayStr()+'.csv';a.click();
+  toast('İndirildi.','success');
+}
+
+// ════════════════════════════════════════
 //  AYARLAR SAYFASI
 // ════════════════════════════════════════
+// Katsayı: {urunAdi: puan}
+const KT_KEY='urun_katsayi_v1';
+let katsayiData={};
+function loadKatsayi(){try{katsayiData=JSON.parse(localStorage.getItem(KT_KEY))||{};}catch{katsayiData={};}}
+function saveKatsayi(){localStorage.setItem(KT_KEY,JSON.stringify(katsayiData));}
+function getKatsayi(urun){return katsayiData[urun]??1;}
+
 function renderAyarlar(){
-  // Ürün listesi
+  // Ürün listesi + katsayı
   const prodCont=document.getElementById('ay-prod-list');
   if(prodCont){
     prodCont.innerHTML=!products.length
       ?'<div style="font-size:12px;color:var(--text3)">Henüz ürün eklenmemiş.</div>'
       :products.map((p,i)=>`
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:var(--surface2);border-radius:var(--radius)">
-          <span style="font-size:13px;font-weight:500">${escHtml(p)}</span>
-          <button onclick="ayRemoveProduct(${i})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0">×</button>
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--surface2);border-radius:var(--radius)">
+          <span style="font-size:13px;font-weight:500;flex:1">${escHtml(p)}</span>
+          <span style="font-size:11px;color:var(--text3);white-space:nowrap">Baz Puan:</span>
+          <input type="number" step="0.1" min="0" value="${getKatsayi(p)}"
+            onchange="aySetKatsayi('${escHtml(p)}',this.value)"
+            style="width:64px;padding:4px 8px;border:.5px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:var(--font);color:var(--text);background:var(--surface);text-align:center">
+          <button onclick="ayRemoveProduct(${i})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0;margin-left:4px">×</button>
         </div>`).join('');
   }
   // Pazar yerleri
@@ -4059,6 +4530,10 @@ function renderAyarlar(){
   }
 }
 
+function aySetKatsayi(urun,val){
+  katsayiData[urun]=parseFloat(val)||0;
+  saveKatsayi();
+}
 function ayAddProduct(){
   const inp=document.getElementById('ay-prod-input');
   const val=inp.value.trim();if(!val)return;
@@ -4137,6 +4612,8 @@ loadNotlar();
 loadGorevler();
 loadLinks();
 loadReklamlar();
+loadUretim();
+loadKatsayi();
 // Firebase hazır olduğunda senkronize et
 document.addEventListener('firebase-ready', ()=>syncFromFirebase());
 if(window.firebaseReady) syncFromFirebase();
