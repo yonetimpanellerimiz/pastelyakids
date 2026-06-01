@@ -1438,6 +1438,12 @@ async function syncFromFirebase(){
     const fbProducts=await window.fbGet('products');
     const fbMarkets=await window.fbGet('markets');
     const fbLinks=await window.fbGet('socialLinks');
+    const fbPuantaj=await window.fbGet('puantaj');
+    const fbPersonel=await window.fbGet('personel');
+    const fbIzin=await window.fbGet('yillikIzin');
+    const fbReklamlar=await window.fbGet('reklamlar');
+    const fbUretim=await window.fbGet('uretim');
+    const fbKatsayi=await window.fbGet('katsayi');
     if(fbOrders&&Array.isArray(fbOrders)){
       orders=fbOrders;
       localStorage.setItem(SK,JSON.stringify(orders));
@@ -1458,11 +1464,39 @@ async function syncFromFirebase(){
       });
       localStorage.setItem(LINKS_KEY,JSON.stringify(socialLinks));
     }
+    if(fbPuantaj&&typeof fbPuantaj==='object'){
+      puanData=fbPuantaj;
+      localStorage.setItem(PUAN_KEY,JSON.stringify(puanData));
+    }
+    if(fbPersonel&&Array.isArray(fbPersonel)){
+      personelList=fbPersonel;
+      localStorage.setItem(PERSONEL_KEY,JSON.stringify(personelList));
+    }
+    if(fbIzin&&typeof fbIzin==='object'){
+      yizinData=fbIzin;
+      localStorage.setItem(YIZIN_KEY,JSON.stringify(yizinData));
+    }
+    if(fbReklamlar&&Array.isArray(fbReklamlar)){
+      reklamlarData=fbReklamlar;
+      localStorage.setItem(RK_KEY,JSON.stringify(reklamlarData));
+    }
+    if(fbUretim&&Array.isArray(fbUretim)){
+      uretimData=fbUretim;
+      localStorage.setItem(UT_KEY,JSON.stringify(uretimData));
+    }
+    if(fbKatsayi&&typeof fbKatsayi==='object'){
+      katsayiData=fbKatsayi;
+      localStorage.setItem(KT_KEY,JSON.stringify(katsayiData));
+    }
     // UI'ı güncelle
     const page=sessionStorage.getItem('activePage')||'dashboard';
     if(page==='liste') renderListPage();
     if(page==='dashboard') renderDashboard();
     if(page==='linkler') renderLinkSettings();
+    if(page==='puantaj'){renderPuantaj();renderYillikIzin();}
+    if(page==='uretim-takip') renderUretim();
+    if(page==='reklamlar') renderReklamlar();
+    if(page==='ayarlar') renderAyarlar();
     renderStats();
     if(document.getElementById('db-social-links')) renderDashboardLinks();
     toast('Veriler senkronize edildi ✓','success');
@@ -3009,8 +3043,8 @@ function loadPuantaj(){
     personelList=Array.isArray(p)?p:[];
   }catch{ personelList=[]; }
 }
-function savePuantaj(){ localStorage.setItem(PUAN_KEY,JSON.stringify(puanData)); }
-function savePersonel(){ localStorage.setItem(PERSONEL_KEY,JSON.stringify(personelList)); }
+function savePuantaj(){ localStorage.setItem(PUAN_KEY,JSON.stringify(puanData)); if(window.fbSet) window.fbSet('puantaj', puanData); }
+function savePersonel(){ localStorage.setItem(PERSONEL_KEY,JSON.stringify(personelList)); if(window.fbSet) window.fbSet('personel', personelList); }
 
 function puanKey(){ return `${puanYear}-${String(puanMonth+1).padStart(2,'0')}`; }
 
@@ -3196,7 +3230,7 @@ let yizinData={};
 function loadYillikIzin(){
   try{yizinData=JSON.parse(localStorage.getItem(YIZIN_KEY))||{};}catch{yizinData={};}
 }
-function saveYillikIzin(){localStorage.setItem(YIZIN_KEY,JSON.stringify(yizinData));}
+function saveYillikIzin(){localStorage.setItem(YIZIN_KEY,JSON.stringify(yizinData)); if(window.fbSet) window.fbSet('yillikIzin', yizinData);}
 
 function getYizinKey(pid){ return `${pid}_${puanYear}`; }
 
@@ -3920,7 +3954,7 @@ const RK_COLORS={Trendyol:'#f27a1a',Etsy:'#f1641e',Meta:'#0866ff',Pinterest:'#e6
 function loadReklamlar(){
   try{reklamlarData=JSON.parse(localStorage.getItem(RK_KEY))||[];}catch{reklamlarData=[];}
 }
-function saveReklamlar(){localStorage.setItem(RK_KEY,JSON.stringify(reklamlarData));}
+function saveReklamlar(){localStorage.setItem(RK_KEY,JSON.stringify(reklamlarData)); if(window.fbSet) window.fbSet('reklamlar', reklamlarData);}
 
 function addReklam(){
   const platform=document.getElementById('rk-platform').value;
@@ -4139,7 +4173,7 @@ let utCharts={};
 function loadUretim(){
   try{uretimData=JSON.parse(localStorage.getItem(UT_KEY))||[];}catch{uretimData=[];}
 }
-function saveUretim(){localStorage.setItem(UT_KEY,JSON.stringify(uretimData));}
+function saveUretim(){localStorage.setItem(UT_KEY,JSON.stringify(uretimData)); if(window.fbSet) window.fbSet('uretim', uretimData);}
 
 function addUretim(){
   const tarih=document.getElementById('ut-tarih').value;
@@ -4483,7 +4517,7 @@ function exportUretim(){
 const KT_KEY='urun_katsayi_v1';
 let katsayiData={};
 function loadKatsayi(){try{katsayiData=JSON.parse(localStorage.getItem(KT_KEY))||{};}catch{katsayiData={};}}
-function saveKatsayi(){localStorage.setItem(KT_KEY,JSON.stringify(katsayiData));}
+function saveKatsayi(){localStorage.setItem(KT_KEY,JSON.stringify(katsayiData)); if(window.fbSet) window.fbSet('katsayi', katsayiData);}
 function getKatsayi(urun){return katsayiData[urun]??1;}
 
 function renderAyarlar(){
